@@ -111,7 +111,7 @@
 
 <!-- Dashboard -->
 <div class="container" id="dash-view" style="display:none">
-  <div style="display:flex;gap:0.5rem;margin-bottom:1rem;">
+  <div style="display:flex;gap:0.5rem;margin-bottom:1rem;" id="dash-tabs">
     <button class="btn" id="tab-links" onclick="switchDashTab('links')" style="flex:1">🔗 Short Links</button>
     <button class="btn btn-outline" id="tab-microsites" onclick="switchDashTab('microsites')" style="flex:1">📱 Microsites</button>
   </div>
@@ -288,6 +288,25 @@ function copyLink(url) { navigator.clipboard?.writeText(url); }
 
 async function deleteLink(code) { if (!confirm('Delete this link?')) return; try { const res = await fetch(API + '/links/' + code, { method:'DELETE', headers:{'Authorization':'Bearer '+token} }); if (!res.ok) { const d = await res.json(); alert(d.error || 'Failed to delete'); return; } loadLinks(); } catch(e) { alert('Network error: ' + e.message); } }
 
+function editMicrosite(slug) { document.getElementById('ms-orig-'+slug).style.display='none'; document.getElementById('ms-edit-'+slug).style.display='block'; }
+function cancelMicrositeEdit(slug) { document.getElementById('ms-orig-'+slug).style.display='block'; document.getElementById('ms-edit-'+slug).style.display='none'; }
+async function saveMicrositeEdit(slug) {
+  const title = document.getElementById('ms-edit-title-'+slug).value.trim();
+  const description = document.getElementById('ms-edit-desc-'+slug).value.trim();
+  const raw = document.getElementById('ms-edit-comp-'+slug).value;
+  const components = raw.split('\n').filter(l=>l.includes('|')).map(l=>{const[p,...u]=l.split('|');return{label:p.trim(),url:(u.join('|')||'').trim()};});
+  try {
+    const res = await fetch(API + '/microsites/' + slug, { method:'PUT', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}, body: JSON.stringify({title, description, components}) });
+    const d = await res.json();
+    if (d.ok) loadMicrosites(); else alert(d.error);
+  } catch(e) { alert('Network error'); }
+}
+
+// Hide microsites tab on production
+if (!location.hostname.startsWith('staging.')) {
+  document.getElementById('tab-microsites').style.display = 'none';
+}
+
 function switchDashTab(tab) {
   document.getElementById('tab-links').className = tab==='links'?'btn':'btn btn-outline';
   document.getElementById('tab-microsites').className = tab==='microsites'?'btn':'btn btn-outline';
@@ -316,13 +335,22 @@ async function loadMicrosites() {
   const el = document.getElementById('microsites-list');
   if (!sites.length) { el.innerHTML = '<h2>Your Microsites</h2><div class="empty-state">No microsites yet. Create one above.</div>'; return; }
   el.innerHTML = '<h2>Your Microsites</h2>' + sites.map(s => `
-    <div class="link-row">
+    <div class="link-row" id="ms-row-${s.slug}">
       <div class="link-info">
         <div class="link-short" onclick="copyLink('${s.url}')">${s.url}</div>
-        <div class="link-target">${s.title} · ${(s.components||[]).length} buttons</div>
+        <div class="link-target" id="ms-orig-${s.slug}">${s.title} · ${(s.components||[]).length} buttons</div>
+        <div class="link-edit" id="ms-edit-${s.slug}">
+          <label>Title</label><input id="ms-edit-title-${s.slug}" value="${s.title.replace(/"/g,'&quot;')}" />
+          <label>Description</label><input id="ms-edit-desc-${s.slug}" value="${(s.description||'').replace(/"/g,'&quot;')}" />
+          <label>Buttons (Label | URL, one per line)</label>
+          <textarea id="ms-edit-comp-${s.slug}" rows="4">${(s.components||[]).map(c=>c.label+' | '+(c.url||'')).join('\n')}</textarea>
+          <button class="btn btn-sm" onclick="saveMicrositeEdit('${s.slug}')">Save</button>
+          <button class="btn btn-sm btn-outline" onclick="cancelMicrositeEdit('${s.slug}')">Cancel</button>
+        </div>
       </div>
       <div class="link-clicks">${s.clicks||0} views</div>
       <div class="link-actions">
+        <button class="btn btn-sm btn-outline" onclick="editMicrosite('${s.slug}')">Edit</button>
         <button class="btn btn-sm btn-outline" onclick="copyLink('${s.url}')">Copy</button>
         <button class="btn btn-sm btn-danger" onclick="deleteMicrosite('${s.slug}')">Del</button>
       </div>
