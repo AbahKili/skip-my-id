@@ -176,7 +176,10 @@ app.put('/api/links/:code', auth, (req, res) => {
 });
 
 app.delete('/api/links/:code', auth, (req, res) => {
-  db.prepare('DELETE FROM links WHERE code = ? AND user_id = ?').run(req.params.code, req.userId);
+  const link = db.prepare('SELECT id FROM links WHERE code = ? AND user_id = ?').get(req.params.code, req.userId);
+  if (!link) return res.status(404).json({ error: 'Link not found' });
+  db.prepare('DELETE FROM clicks WHERE link_id = ?').run(link.id);
+  db.prepare('DELETE FROM links WHERE id = ?').run(link.id);
   res.json({ ok: true });
 });
 
