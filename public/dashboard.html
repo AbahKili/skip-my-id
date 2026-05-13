@@ -208,6 +208,16 @@ async function loadLinks() {
         <div class="link-edit" id="edit-${l.code}">
           <label>Short name</label><input id="edit-code-${l.code}" value="${l.code}" />
           <label>Destination URL</label><input id="edit-url-${l.code}" value="${l.url.replace(/"/g,'&quot;')}" />
+          <label style="margin-top:0.3rem">Mode</label>
+          <select id="edit-mode-${l.code}" style="width:100%;padding:0.35rem;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.75rem;font-family:inherit;margin-bottom:0.3rem" onchange="toggleMicrositeEditor('${l.code}')">
+            <option value="redirect" ${l.mode!=='microsite'?'selected':''}>Redirect (instant)</option>
+            <option value="microsite" ${l.mode==='microsite'?'selected':''}>Microsite (landing page)</option>
+          </select>
+          <div id="microsite-editor-${l.code}" style="display:${l.mode==='microsite'?'':'none'}">
+            <label>Extra buttons (one per line: Label | URL)</label>
+            <textarea id="edit-microsite-${l.code}" rows="3" style="width:100%;padding:0.35rem;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.7rem;font-family:monospace;resize:vertical">${getMicrositeLabels(l)}</textarea>
+            <p style="font-size:0.6rem;color:var(--dim);margin-top:0.15rem">Format: Button Text | https://...</p>
+          </div>
           <button class="btn btn-sm" onclick="saveEdit('${l.code}')">Save</button>
           <button class="btn btn-sm btn-outline" onclick="cancelEdit('${l.code}')">Cancel</button>
         </div>
@@ -225,11 +235,28 @@ async function loadLinks() {
 function editLink(code) { document.getElementById('orig-'+code).style.display='none'; document.getElementById('edit-'+code).style.display='block'; }
 function cancelEdit(code) { document.getElementById('orig-'+code).style.display='block'; document.getElementById('edit-'+code).style.display='none'; }
 
+function getMicrositeLabels(l) {
+  try { const d = JSON.parse(l.microsite_data || '[]'); return d.map(c => (c.label||'') + ' | ' + (c.url||'')).join('\n'); } catch { return ''; }
+}
+function toggleMicrositeEditor(code) {
+  const mode = document.getElementById('edit-mode-'+code).value;
+  document.getElementById('microsite-editor-'+code).style.display = mode === 'microsite' ? '' : 'none';
+}
+
 async function saveEdit(code) {
   const url = document.getElementById('edit-url-'+code).value.trim();
   const newCode = document.getElementById('edit-code-'+code).value.trim();
+  const mode = document.getElementById('edit-mode-'+code)?.value || 'redirect';
+  let micrositeData = null;
+  if (mode === 'microsite') {
+    const raw = document.getElementById('edit-microsite-'+code)?.value || '';
+    micrositeData = JSON.stringify(raw.split('\n').filter(l => l.includes('|')).map(l => {
+      const [label, ...urlParts] = l.split('|');
+      return { label: label.trim(), url: (urlParts.join('|')||'').trim() };
+    }));
+  }
   try {
-    const res = await fetch(API + '/links/' + code, { method:'PUT', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}, body: JSON.stringify({url, newCode: newCode || undefined}) });
+    const res = await fetch(API + '/links/' + code, { method:'PUT', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}, body: JSON.stringify({url, newCode: newCode || undefined, mode, microsite_data: micrositeData}) });
     const d = await res.json();
     if (d.ok) loadLinks(); else alert(d.error);
   } catch(e) { alert('Network error'); }

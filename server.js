@@ -29,6 +29,8 @@ db.exec(`
     code TEXT UNIQUE NOT NULL,
     url TEXT NOT NULL,
     title TEXT,
+    mode TEXT DEFAULT 'redirect',
+    microsite_data TEXT,
     clicks INTEGER DEFAULT 0,
     created_at TEXT DEFAULT (datetime('now')),
     FOREIGN KEY(user_id) REFERENCES users(id)
@@ -169,10 +171,14 @@ app.put('/api/links/:code', auth, (req, res) => {
     if (!/^https?:\/\//i.test(finalURL)) finalURL = 'https://' + finalURL;
   }
 
+  if (req.body.mode) db.prepare('UPDATE links SET mode = ? WHERE code = ? AND user_id = ?').run(req.body.mode, link.code, req.userId);
+  if (req.body.microsite_data) db.prepare('UPDATE links SET microsite_data = ? WHERE code = ? AND user_id = ?').run(req.body.microsite_data, link.code, req.userId);
+
   db.prepare('UPDATE links SET url = ?, title = ?, code = ? WHERE code = ? AND user_id = ?').run(
     finalURL, title || link.title, finalCode, req.params.code, req.userId
   );
-  res.json({ ok: true, link: { id: link.id, code: finalCode, url: finalURL, title: title || link.title, shortURL: `https://skip.my.id/${finalCode}` } });
+  const updated = db.prepare('SELECT * FROM links WHERE code = ?').get(finalCode);
+  res.json({ ok: true, link: { ...updated, shortURL: `https://skip.my.id/${finalCode}` } });
 });
 
 app.delete('/api/links/:code', auth, (req, res) => {
@@ -191,11 +197,47 @@ app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.ht
 app.get('/:code', (req, res) => {
   const link = db.prepare('SELECT * FROM links WHERE code = ?').get(req.params.code);
   if (!link) return res.redirect('https://nerdstudio.online');
-  // Log click async
+  // Log click
   db.prepare('INSERT INTO clicks (link_id, referer, ip, ua) VALUES (?, ?, ?, ?)').run(
     link.id, req.get('referer') || '', req.ip || '', req.get('user-agent') || ''
   );
   db.prepare('UPDATE links SET clicks = clicks + 1 WHERE id = ?').run(link.id);
+  // Microsite mode — render landing page
+  if (link.mode === 'microsite') {
+    let components = [];
+    try { components = JSON.parse(link.microsite_data || '[]'); } catch {}
+    const buttonsHTML = components.map(c => `
+      <a href="${c.url || '#'}" target="_blank" rel="noopener" class="btn">${c.label || 'Visit'}</a>
+    `).join('\n');
+    return res.send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" /><meta name="viewport" content="width=device-width,initial-scale=1.0" />
+  <title>${link.title || link.code} — Skip My ID</title>
+  <meta property="og:title" content="${link.title || link.code}" />
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Plus Jakarta Sans',-apple-system,sans-serif;background:#020617;color:#f8fafc;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem}
+    .card{max-width:400px;width:100%;text-align:center}
+    h1{font-size:1.5rem;margin-bottom:0.3rem;font-family:'Space Grotesk',sans-serif}
+    .sub{color:#94a3b8;font-size:0.85rem;margin-bottom:1.5rem}
+    .btn{display:block;width:100%;padding:0.75rem;background:#0f172a;border:1px solid #1e293b;border-radius:10px;color:#f8fafc;text-decoration:none;font-weight:500;margin-bottom:0.5rem;transition:border-color 0.2s,background 0.2s;font-size:0.9rem}
+    .btn:hover{border-color:#22c55e;background:rgba(34,197,94,0.05)}
+    footer{position:fixed;bottom:1rem;color:#475569;font-size:0.7rem}
+    footer a{color:#22c55e;text-decoration:none}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>${link.title || 'Links'}</h1>
+    <p class="sub">${link.url ? 'Curated by Skip My ID' : ''}</p>
+    ${buttonsHTML}
+  </div>
+  <footer>Powered by <a href="https://skip.my.id">Skip My ID</a></footer>
+</body>
+</html>`);
+  }
+  // Default: redirect
   res.redirect(301, link.url);
 });
 
