@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard — skip.my.id</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet" />
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{--bg:#020617;--surface:#0f172a;--border:#1e293b;--accent:#22c55e;--text:#f8fafc;--muted:#94a3b8;--dim:#64748b;--red:#ef4444}
+    body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+    h1,h2{font-family:'Space Grotesk',sans-serif}
+    a{color:var(--accent);text-decoration:none}
+    .nav{padding:1rem 2rem;background:var(--surface);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+    .nav .logo{font-family:'Space Grotesk',sans-serif;font-weight:700}
+    .nav .logo span{color:var(--accent)}
+    .container{max-width:680px;margin:0 auto;padding:2rem 1.5rem}
+    .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.2rem;margin-bottom:0.75rem}
+    .field{margin-bottom:0.6rem}
+    .field input{width:100%;padding:0.6rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;font-family:inherit}
+    .field input:focus{outline:none;border-color:var(--accent)}
+    .field label{display:block;font-size:0.7rem;font-weight:600;color:var(--muted);margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.05em}
+    button,.btn{background:var(--accent);color:#020617;font-weight:700;border:none;border-radius:8px;padding:0.55rem 1rem;cursor:pointer;font-size:0.8rem;font-family:inherit}
+    button:hover,.btn:hover{background:#16a34a}
+    .btn-sm{padding:0.3rem 0.6rem;font-size:0.7rem}
+    .btn-outline{background:transparent;border:1px solid var(--border);color:var(--text)}
+    .btn-outline:hover{background:var(--surface);color:var(--accent)}
+    .btn-danger{background:transparent;border:1px solid rgba(239,68,68,0.3);color:var(--red)}
+    .btn-danger:hover{background:rgba(239,68,68,0.1)}
+    .link-row{display:flex;justify-content:space-between;align-items:center;padding:0.6rem 0;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:0.5rem}
+    .link-row:last-child{border-bottom:none}
+    .link-info{flex:1;min-width:0}
+    .link-short{color:var(--accent);font-size:0.85rem;font-weight:600;cursor:pointer}
+    .link-original{color:var(--muted);font-size:0.7rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:300px}
+    .link-clicks{color:var(--dim);font-size:0.7rem}
+    .link-actions{display:flex;gap:0.4rem}
+    .auth-box{max-width:360px;margin:4rem auto}
+    .tabs{display:flex;gap:0;margin-bottom:1rem}
+    .tab{flex:1;text-align:center;padding:0.6rem;background:var(--bg);border:1px solid var(--border);cursor:pointer;font-size:0.8rem;font-weight:600;color:var(--muted)}
+    .tab:first-child{border-radius:8px 0 0 8px}
+    .tab:last-child{border-radius:0 8px 8px 0}
+    .tab.active{background:var(--accent);color:#020617;border-color:var(--accent)}
+    .error{color:var(--red);font-size:0.7rem;margin-top:0.3rem}
+    .empty{text-align:center;color:var(--dim);padding:2rem}
+    @media(max-width:480px){.nav{padding:1rem}.container{padding:1rem}}
+  </style>
+</head>
+<body>
+
+<div class="nav">
+  <a href="/" class="logo">s.nerd<span>studio</span></a>
+  <div><span id="user-name" style="color:var(--muted);font-size:0.8rem;margin-right:0.5rem;"></span><button class="btn-outline btn-sm" onclick="logout()">Logout</button></div>
+</div>
+
+<!-- Auth -->
+<div class="container" id="auth-view">
+  <div class="auth-box card">
+    <div class="tabs"><div class="tab active" onclick="switchTab('login')">Login</div><div class="tab" onclick="switchTab('register')">Register</div></div>
+    <div id="login-form">
+      <div class="field"><label>Email</label><input id="login-email" type="email" placeholder="you@email.com" /></div>
+      <div class="field"><label>Password</label><input id="login-pw" type="password" /></div>
+      <button onclick="login()">Login →</button>
+      <div class="error" id="login-error"></div>
+    </div>
+    <div id="register-form" style="display:none">
+      <div class="field"><label>Name (optional)</label><input id="reg-name" type="text" placeholder="Your name" /></div>
+      <div class="field"><label>Email</label><input id="reg-email" type="email" placeholder="you@email.com" /></div>
+      <div class="field"><label>Password</label><input id="reg-pw" type="password" placeholder="Min 6 characters" /></div>
+      <button onclick="register()">Create Account →</button>
+      <div class="error" id="reg-error"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Dashboard -->
+<div class="container" id="dash-view" style="display:none">
+  <div class="card">
+    <h2 style="font-size:1rem;margin-bottom:0.75rem;">Create Short Link</h2>
+    <div class="field"><label>Long URL</label><input id="new-url" type="url" placeholder="https://..." /></div>
+    <div class="field"><label>Custom name (optional)</label><input id="new-code" type="text" placeholder="my-link" maxlength="20" /></div>
+    <button onclick="createLink()">Create →</button>
+    <div class="error" id="create-error"></div>
+  </div>
+
+  <div class="card" id="links-list"><div class="empty">Loading...</div></div>
+</div>
+
+<script>
+const API = '/api';
+let token = localStorage.getItem('shortener-token');
+
+function showError(id, msg) { const el = document.getElementById(id); el.textContent = msg || ''; }
+
+async function login() {
+  const email = document.getElementById('login-email').value.trim();
+  const pw = document.getElementById('login-pw').value;
+  try {
+    const res = await fetch(API + '/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email, password}) });
+    const d = await res.json();
+    if (d.token) { token = d.token; localStorage.setItem('shortener-token', token); showDashboard(d.user); }
+    else showError('login-error', d.error);
+  } catch(e) { showError('login-error', 'Network error'); }
+}
+
+async function register() {
+  const email = document.getElementById('reg-email').value.trim();
+  const pw = document.getElementById('reg-pw').value;
+  const name = document.getElementById('reg-name').value.trim();
+  try {
+    const res = await fetch(API + '/register', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email, password: pw, name}) });
+    const d = await res.json();
+    if (d.ok) { switchTab('login'); showError('login-error', 'Account created! Please login.'); }
+    else showError('reg-error', d.error);
+  } catch(e) { showError('reg-error', 'Network error'); }
+}
+
+function logout() { localStorage.removeItem('shortener-token'); token = null; location.reload(); }
+
+function switchTab(t) {
+  document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('login-form').style.display = t === 'login' ? '' : 'none';
+  document.getElementById('register-form').style.display = t === 'register' ? '' : 'none';
+}
+
+async function createLink() {
+  const url = document.getElementById('new-url').value.trim();
+  const code = document.getElementById('new-code').value.trim();
+  try {
+    const res = await fetch(API + '/links', { method:'POST', headers:{'Content-Type':'application/json', 'Authorization': 'Bearer ' + token}, body: JSON.stringify({url, code: code || undefined}) });
+    const d = await res.json();
+    if (d.ok) { document.getElementById('new-url').value = ''; document.getElementById('new-code').value = ''; loadLinks(); }
+    else showError('create-error', d.error);
+  } catch(e) { showError('create-error', 'Network error'); }
+}
+
+async function loadLinks() {
+  const res = await fetch(API + '/links', { headers: { 'Authorization': 'Bearer ' + token } });
+  const links = await res.json();
+  const el = document.getElementById('links-list');
+  if (!links.length) { el.innerHTML = '<div class="empty">No links yet. Create your first one above.</div>'; return; }
+  el.innerHTML = links.map(l => `
+    <div class="link-row">
+      <div class="link-info">
+        <div class="link-short" onclick="copyLink('${l.shortURL}')">${l.shortURL}</div>
+        <div class="link-original" title="${l.url}">${l.url}</div>
+      </div>
+      <div class="link-clicks">${l.clicks || 0} clicks</div>
+      <div class="link-actions">
+        <button class="btn-sm btn-outline" onclick="copyLink('${l.shortURL}')">Copy</button>
+        <button class="btn-sm btn-danger" onclick="deleteLink('${l.code}')">Del</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function copyLink(url) { navigator.clipboard?.writeText(url); alert('Copied: ' + url); }
+
+async function deleteLink(code) {
+  if (!confirm('Delete this link?')) return;
+  await fetch(API + '/links/' + code, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } });
+  loadLinks();
+}
+
+function showDashboard(user) {
+  document.getElementById('auth-view').style.display = 'none';
+  document.getElementById('dash-view').style.display = '';
+  document.getElementById('user-name').textContent = user.email;
+  loadLinks();
+}
+
+// Init
+if (token) {
+  fetch(API + '/links', { headers: { 'Authorization': 'Bearer ' + token } }).then(r => {
+    if (r.ok) { document.getElementById('auth-view').style.display = 'none'; document.getElementById('dash-view').style.display = ''; loadLinks(); }
+    else { localStorage.removeItem('shortener-token'); token = null; }
+  });
+}
+</script>
+</body>
+</html>

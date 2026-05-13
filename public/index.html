@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>skip.my.id — Link Shortener</title>
+  <meta name="description" content="Short links, bio pages, QR codes. Free." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet" />
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{--bg:#020617;--surface:#0f172a;--border:#1e293b;--accent:#22c55e;--text:#f8fafc;--muted:#94a3b8;--dim:#64748b;--red:#ef4444}
+    body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem}
+    h1,h2{font-family:'Space Grotesk',sans-serif}
+    .container{max-width:520px;width:100%;text-align:center}
+    .logo{font-family:'Space Grotesk',sans-serif;font-size:1.1rem;margin-bottom:2rem;color:var(--dim)}
+    .logo span{color:var(--accent);font-weight:700}
+    h1{font-size:2rem;margin-bottom:0.5rem}
+    h1 span{color:var(--accent)}
+    .sub{color:var(--muted);font-size:0.95rem;margin-bottom:2rem}
+    .shortener-box{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.5rem;margin-bottom:1rem}
+    .field{margin-bottom:0.75rem;text-align:left}
+    .field label{display:block;font-size:0.75rem;font-weight:600;color:var(--muted);margin-bottom:0.3rem;text-transform:uppercase;letter-spacing:0.05em}
+    .field input{width:100%;padding:0.65rem 0.8rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;font-family:inherit}
+    .field input:focus{outline:none;border-color:var(--accent)}
+    button{width:100%;padding:0.7rem;background:var(--accent);color:#020617;font-weight:700;border:none;border-radius:8px;font-size:0.9rem;cursor:pointer;font-family:inherit}
+    button:hover{background:#16a34a}
+    .result{margin-top:0.75rem;padding:0.6rem;background:var(--bg);border-radius:8px;display:none}
+    .result.show{display:block}
+    .result input{width:100%;background:transparent;border:none;color:var(--accent);font-size:0.85rem;text-align:center;cursor:pointer}
+    .features{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;margin:2rem 0}
+    .feature{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1rem;width:140px;text-align:center}
+    .feature .icon{font-size:1.3rem;margin-bottom:0.3rem}
+    .feature .label{font-size:0.75rem;color:var(--muted);font-weight:600}
+    .cta{color:var(--dim);font-size:0.8rem}
+    .cta a{color:var(--accent)}
+    .error{color:#ef4444;font-size:0.75rem;margin-top:0.3rem;display:none}
+    .error.show{display:block}
+    @media(max-width:480px){h1{font-size:1.5rem}}
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="logo">Nerd<span>Studio</span></div>
+  <h1>Short links.<br><span>No clutter.</span></h1>
+  <p class="sub">Paste a long URL. Get a clean short link. Free. No account needed for your first link.</p>
+
+  <div class="shortener-box" id="quick-box">
+    <div class="field"><label>Long URL</label><input id="quick-url" type="url" placeholder="https://..." autocomplete="off" /></div>
+    <div class="field"><label>Custom name (optional)</label><input id="quick-code" type="text" placeholder="my-link" autocomplete="off" maxlength="20" oninput="checkAvailability()" /><span id="code-status" style="font-size:0.7rem;margin-top:0.2rem;display:inline-block"></span></div>
+    <button onclick="quickShorten()">Shorten →</button>
+    <div class="error" id="quick-error"></div>
+    <div class="result" id="quick-result"><input id="quick-output" readonly onclick="this.select();document.execCommand('copy')" /></div>
+  </div>
+
+  <div class="features">
+    <div class="feature"><div class="icon">🔗</div><div class="label">Short Links</div></div>
+    <div class="feature"><div class="icon">📊</div><div class="label">Click Stats</div></div>
+    <div class="feature"><div class="icon">👤</div><div class="label">Custom Names</div></div>
+  </div>
+
+  <p class="cta"><a href="/dashboard">Sign in</a> to manage your links. Built by <a href="https://nerdstudio.online">Nerd Studio</a>.</p>
+</div>
+
+<script>
+let checkTimer;
+async function checkAvailability() {
+  clearTimeout(checkTimer);
+  const code = document.getElementById('quick-code').value.trim();
+  const status = document.getElementById('code-status');
+  if (!code || code.length < 2) { status.textContent = ''; return; }
+  checkTimer = setTimeout(async () => {
+    try {
+      const res = await fetch('/api/check/' + encodeURIComponent(code));
+      const d = await res.json();
+      status.textContent = d.available ? '✓ Available' : '✗ ' + (d.reason || 'Taken');
+      status.style.color = d.available ? 'var(--accent)' : 'var(--red)';
+    } catch { status.textContent = ''; }
+  }, 400);
+}
+
+async function quickShorten() {
+  const url = document.getElementById('quick-url').value.trim();
+  const code = document.getElementById('quick-code').value.trim();
+  const errEl = document.getElementById('quick-error');
+  errEl.classList.remove('show');
+  if (!url) { errEl.textContent = 'Please enter a URL'; errEl.classList.add('show'); return; }
+  if (!url.includes('.')) { errEl.textContent = 'Please enter a valid URL'; errEl.classList.add('show'); return; }
+  try {
+    const res = await fetch('/api/links', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({url, code: code || undefined})
+    });
+    const data = await res.json();
+    if (data.ok) {
+      document.getElementById('quick-output').value = data.link.shortURL;
+      document.getElementById('quick-result').classList.add('show');
+    } else {
+      errEl.textContent = data.error || 'Failed'; errEl.classList.add('show');
+    }
+  } catch(e) {
+    errEl.textContent = 'Network error'; errEl.classList.add('show');
+  }
+}
+</script>
+</body>
+</html>
