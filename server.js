@@ -149,14 +149,30 @@ app.get('/api/links', auth, (req, res) => {
 });
 
 app.put('/api/links/:code', auth, (req, res) => {
-  const { url, title } = req.body || {};
-  if (!url) return res.status(400).json({ error: 'URL required' });
-  let finalURL = url.trim();
-  if (!/^https?:\/\//i.test(finalURL)) finalURL = 'https://' + finalURL;
+  const { url, title, newCode } = req.body || {};
   const link = db.prepare('SELECT * FROM links WHERE code = ? AND user_id = ?').get(req.params.code, req.userId);
   if (!link) return res.status(404).json({ error: 'Link not found' });
-  db.prepare('UPDATE links SET url = ?, title = ? WHERE code = ? AND user_id = ?').run(finalURL, title || link.title, req.params.code, req.userId);
-  res.json({ ok: true, link: { ...link, url: finalURL, title: title || link.title, shortURL: `https://skip.my.id/${link.code}` } });
+
+  let finalCode = link.code;
+  if (newCode && newCode !== link.code) {
+    const clean = newCode.toLowerCase().replace(/[^a-z0-9-_]/g, '');
+    if (!clean || clean.length < 2) return res.status(400).json({ error: 'Min 2 characters' });
+    if (['api','dashboard','login','register','admin','help','docs'].includes(clean)) return res.status(400).json({ error: 'Reserved word' });
+    const exists = db.prepare('SELECT 1 FROM links WHERE code = ? AND code != ?').get(clean, link.code);
+    if (exists) return res.status(409).json({ error: 'That short name is already taken' });
+    finalCode = clean;
+  }
+
+  let finalURL = link.url;
+  if (url) {
+    finalURL = url.trim();
+    if (!/^https?:\/\//i.test(finalURL)) finalURL = 'https://' + finalURL;
+  }
+
+  db.prepare('UPDATE links SET url = ?, title = ?, code = ? WHERE code = ? AND user_id = ?').run(
+    finalURL, title || link.title, finalCode, req.params.code, req.userId
+  );
+  res.json({ ok: true, link: { id: link.id, code: finalCode, url: finalURL, title: title || link.title, shortURL: `https://skip.my.id/${finalCode}` } });
 });
 
 app.delete('/api/links/:code', auth, (req, res) => {

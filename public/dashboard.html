@@ -173,6 +173,9 @@ async function loadLinks() {
         <div class="link-short" onclick="copyLink('${l.shortURL}')">${l.shortURL}</div>
         <div class="link-original" id="orig-${l.code}" title="${l.url}">${l.url}</div>
         <div class="link-edit" id="edit-${l.code}" style="display:none;margin-top:0.3rem;">
+          <label style="font-size:0.65rem;color:var(--muted);">Short name</label>
+          <input id="edit-code-${l.code}" value="${l.code}" style="width:100%;padding:0.3rem 0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.75rem;margin-bottom:0.3rem;" />
+          <label style="font-size:0.65rem;color:var(--muted);">Destination URL</label>
           <input id="edit-url-${l.code}" value="${l.url.replace(/"/g,'&quot;')}" style="width:100%;padding:0.3rem 0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.75rem;" />
           <button class="btn-sm" onclick="saveEdit('${l.code}')" style="margin-top:0.3rem;">Save</button>
           <button class="btn-sm btn-outline" onclick="cancelEdit('${l.code}')">Cancel</button>
@@ -198,8 +201,9 @@ function cancelEdit(code) {
 }
 async function saveEdit(code) {
   const url = document.getElementById('edit-url-' + code).value.trim();
+  const newCode = document.getElementById('edit-code-' + code).value.trim();
   try {
-    const res = await fetch(API + '/links/' + code, { method:'PUT', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}, body: JSON.stringify({url}) });
+    const res = await fetch(API + '/links/' + code, { method:'PUT', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}, body: JSON.stringify({url, newCode: newCode || undefined}) });
     const d = await res.json();
     if (d.ok) { loadLinks(); }
     else alert(d.error);
