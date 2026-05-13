@@ -237,7 +237,7 @@ async function saveEdit(code) {
 
 function copyLink(url) { navigator.clipboard?.writeText(url); }
 
-async function deleteLink(code) { if (confirm('Delete this link?')) { await fetch(API + '/links/' + code, { method:'DELETE', headers:{'Authorization':'Bearer '+token} }); loadLinks(); } }
+async function deleteLink(code) { if (!confirm('Delete this link?')) return; try { const res = await fetch(API + '/links/' + code, { method:'DELETE', headers:{'Authorization':'Bearer '+token} }); if (!res.ok) { const d = await res.json(); alert(d.error || 'Failed to delete'); return; } loadLinks(); } catch(e) { alert('Network error: ' + e.message); } }
 
 function showDashboard(user) {
   document.getElementById('auth-view').style.display = 'none';
