@@ -4,72 +4,106 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dashboard — Skip My ID</title>
+  <meta name="description" content="Manage your short links, track clicks, and customize your Skip My ID profile." />
+  <link rel="canonical" href="https://skip.my.id/dashboard" />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%2322c55e'/><text x='16' y='22' text-anchor='middle' font-size='14' font-weight='bold' fill='%23020617'>S</text></svg>" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet" />
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    :root{--bg:#020617;--surface:#0f172a;--border:#1e293b;--accent:#22c55e;--text:#f8fafc;--muted:#94a3b8;--dim:#64748b;--red:#ef4444}
-    body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
-    h1,h2{font-family:'Space Grotesk',sans-serif}
-    a{color:var(--accent);text-decoration:none}
-    .nav{padding:1rem 2rem;background:var(--surface);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
-    .nav .logo{font-family:'Space Grotesk',sans-serif;font-weight:700}
-    .nav .logo span{color:var(--accent)}
+    :root{--bg:#020617;--surface:#0f172a;--border:#1e293b;--accent:#22c55e;--accent-hover:#16a34a;--text:#f8fafc;--muted:#94a3b8;--dim:#64748b;--red:#ef4444;--radius:10px}
+    body{font-family:'Plus Jakarta Sans',-apple-system,sans-serif;background:var(--bg);color:var(--text);line-height:1.6;min-height:100vh}
+    h1,h2,h3{font-family:'Space Grotesk',sans-serif}
+    a{color:var(--accent);text-decoration:none;transition:color 0.2s}
+    :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+    .nav{padding:0.9rem 2rem;background:var(--surface);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+    .logo{font-family:'Space Grotesk',sans-serif;font-size:1.1rem;font-weight:700;color:var(--text)}
+    .logo span{color:var(--accent)}
+    .nav-right{display:flex;align-items:center;gap:0.75rem}
+
     .container{max-width:680px;margin:0 auto;padding:2rem 1.5rem}
-    .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.2rem;margin-bottom:0.75rem}
-    .field{margin-bottom:0.6rem}
-    .field input{width:100%;padding:0.6rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;font-family:inherit}
+    .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.5rem;margin-bottom:1rem}
+    .card h2{font-size:1.1rem;margin-bottom:1rem}
+
+    /* Form */
+    .field{margin-bottom:0.8rem}
+    .field label{display:block;font-size:0.7rem;font-weight:600;color:var(--muted);margin-bottom:0.25rem;text-transform:uppercase;letter-spacing:0.05em}
+    .field input{width:100%;padding:0.65rem 0.8rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;font-family:inherit;transition:border-color 0.2s}
     .field input:focus{outline:none;border-color:var(--accent)}
-    .field label{display:block;font-size:0.7rem;font-weight:600;color:var(--muted);margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.05em}
-    button,.btn{background:var(--accent);color:#020617;font-weight:700;border:none;border-radius:8px;padding:0.55rem 1rem;cursor:pointer;font-size:0.8rem;font-family:inherit}
-    button:hover,.btn:hover{background:#16a34a}
-    .btn-sm{padding:0.3rem 0.6rem;font-size:0.7rem}
+    .field input::placeholder{color:var(--dim)}
+
+    .btn{background:var(--accent);color:#020617;font-weight:600;border:none;border-radius:8px;padding:0.6rem 1.2rem;font-size:0.82rem;cursor:pointer;font-family:inherit;transition:background 0.2s,box-shadow 0.2s}
+    .btn:hover{background:var(--accent-hover);box-shadow:0 0 16px rgba(34,197,94,0.15)}
+    .btn-sm{padding:0.35rem 0.7rem;font-size:0.7rem;border-radius:6px}
     .btn-outline{background:transparent;border:1px solid var(--border);color:var(--text)}
-    .btn-outline:hover{background:var(--surface);color:var(--accent)}
-    .btn-danger{background:transparent;border:1px solid rgba(239,68,68,0.3);color:var(--red)}
-    .btn-danger:hover{background:rgba(239,68,68,0.1)}
-    .link-row{display:flex;justify-content:space-between;align-items:center;padding:0.6rem 0;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:0.5rem}
+    .btn-outline:hover{background:rgba(255,255,255,0.03);color:var(--accent);border-color:var(--accent)}
+    .btn-danger{background:transparent;border:1px solid rgba(239,68,68,0.2);color:var(--red)}
+    .btn-danger:hover{background:rgba(239,68,68,0.08);border-color:rgba(239,68,68,0.4)}
+    .error{color:var(--red);font-size:0.72rem;margin-top:0.3rem;display:none}
+    .error.show{display:block}
+
+    /* Link list */
+    .link-row{display:flex;align-items:center;gap:0.6rem;padding:0.7rem 0;border-bottom:1px solid rgba(255,255,255,0.03);flex-wrap:wrap}
     .link-row:last-child{border-bottom:none}
     .link-info{flex:1;min-width:0}
-    .link-short{color:var(--accent);font-size:0.85rem;font-weight:600;cursor:pointer}
-    .link-original{color:var(--muted);font-size:0.7rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:300px}
-    .link-clicks{color:var(--dim);font-size:0.7rem}
-    .link-actions{display:flex;gap:0.4rem}
-    .auth-box{max-width:360px;margin:4rem auto}
-    .tabs{display:flex;gap:0;margin-bottom:1rem}
-    .tab{flex:1;text-align:center;padding:0.6rem;background:var(--bg);border:1px solid var(--border);cursor:pointer;font-size:0.8rem;font-weight:600;color:var(--muted)}
+    .link-short{color:var(--accent);font-size:0.85rem;font-weight:600;cursor:pointer;font-family:monospace}
+    .link-short:hover{color:var(--accent-hover)}
+    .link-target{color:var(--muted);font-size:0.7rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:300px}
+    .link-clicks{color:var(--dim);font-size:0.7rem;white-space:nowrap;min-width:50px;text-align:right}
+    .link-actions{display:flex;gap:0.3rem;flex-shrink:0}
+
+    .link-edit{margin-top:0.5rem;display:none}
+    .link-edit input{width:100%;padding:0.4rem 0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.75rem;font-family:inherit;margin-bottom:0.3rem}
+    .link-edit input:focus{outline:none;border-color:var(--accent)}
+    .link-edit label{font-size:0.6rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:0.15rem}
+
+    /* Auth */
+    .auth-box{max-width:380px;margin:3rem auto}
+    .tabs{display:flex;margin-bottom:1rem;border-radius:8px;overflow:hidden}
+    .tab{flex:1;text-align:center;padding:0.6rem;background:var(--bg);border:1px solid var(--border);cursor:pointer;font-size:0.8rem;font-weight:600;color:var(--muted);transition:all 0.2s}
     .tab:first-child{border-radius:8px 0 0 8px}
     .tab:last-child{border-radius:0 8px 8px 0}
     .tab.active{background:var(--accent);color:#020617;border-color:var(--accent)}
-    .error{color:var(--red);font-size:0.7rem;margin-top:0.3rem}
-    .empty{text-align:center;color:var(--dim);padding:2rem}
-    @media(max-width:480px){.nav{padding:1rem}.container{padding:1rem}}
+    .divider{display:flex;align-items:center;gap:0.75rem;margin:1rem 0;color:var(--dim);font-size:0.7rem}
+    .divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border)}
+    .empty-state{text-align:center;padding:2rem;color:var(--dim);font-size:0.85rem}
+
+    @media(max-width:480px){
+      .nav{padding:0.8rem 1.2rem}.container{padding:1.2rem 1rem}.link-actions{width:100%;margin-top:0.3rem}
+    }
   </style>
 </head>
 <body>
 
 <div class="nav">
   <a href="/" class="logo">Skip<span>My</span>ID</a>
-  <div><span id="user-name" style="color:var(--muted);font-size:0.8rem;margin-right:0.5rem;"></span><button class="btn-outline btn-sm" onclick="logout()">Logout</button></div>
+  <div class="nav-right">
+    <span id="user-name" style="color:var(--muted);font-size:0.78rem;"></span>
+    <button class="btn btn-outline btn-sm" onclick="logout()">Logout</button>
+  </div>
 </div>
 
 <!-- Auth -->
 <div class="container" id="auth-view">
   <div class="auth-box card">
-    <div class="tabs"><div class="tab active" onclick="switchTab('login')">Login</div><div class="tab" onclick="switchTab('register')">Register</div></div>
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab(event,'login')">Sign In</div>
+      <div class="tab" onclick="switchTab(event,'register')">Register</div>
+    </div>
     <div id="login-form">
       <div class="field"><label>Email</label><input id="login-email" type="email" placeholder="you@email.com" /></div>
       <div class="field"><label>Password</label><input id="login-pw" type="password" /></div>
-      <button onclick="login()">Login →</button>
-      <div style="margin:0.5rem 0;text-align:center;color:var(--dim);font-size:0.7rem;">or</div>
+      <button class="btn" onclick="login()" style="width:100%">Sign In</button>
+      <div class="divider">or</div>
       <div id="g_id_signin" style="display:flex;justify-content:center;"></div>
       <div class="error" id="login-error"></div>
     </div>
     <div id="register-form" style="display:none">
-      <div class="field"><label>Name (optional)</label><input id="reg-name" type="text" placeholder="Your name" /></div>
+      <div class="field"><label>Name</label><input id="reg-name" type="text" placeholder="Your name" /></div>
       <div class="field"><label>Email</label><input id="reg-email" type="email" placeholder="you@email.com" /></div>
       <div class="field"><label>Password</label><input id="reg-pw" type="password" placeholder="Min 6 characters" /></div>
-      <button onclick="register()">Create Account →</button>
+      <button class="btn" onclick="register()" style="width:100%">Create Account</button>
       <div class="error" id="reg-error"></div>
     </div>
   </div>
@@ -78,48 +112,44 @@
 <!-- Dashboard -->
 <div class="container" id="dash-view" style="display:none">
   <div class="card">
-    <h2 style="font-size:1rem;margin-bottom:0.75rem;">Create Short Link</h2>
-    <div class="field"><label>Long URL</label><input id="new-url" type="url" placeholder="https://..." /></div>
+    <h2>Create Short Link</h2>
+    <div class="field"><label>Destination URL</label><input id="new-url" type="text" placeholder="https://example.com/your-long-url" /></div>
     <div class="field"><label>Custom name (optional)</label><input id="new-code" type="text" placeholder="my-link" maxlength="20" /></div>
-    <button onclick="createLink()">Create →</button>
+    <button class="btn" onclick="createLink()">Create Link</button>
     <div class="error" id="create-error"></div>
   </div>
 
-  <div class="card" id="links-list"><div class="empty">Loading...</div></div>
+  <div class="card" id="links-list">
+    <h2>Your Links</h2>
+    <div class="empty-state">Loading...</div>
+  </div>
 </div>
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
 const API = '/api';
+let token = localStorage.getItem('shortener-token');
 
-// Google Sign-In callback
+function showError(id, msg) { const el = document.getElementById(id); el.textContent = msg || ''; el.classList.toggle('show', !!msg); }
+
 function handleGoogleResponse(response) {
-  fetch(API + '/auth/google', {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({idToken: response.credential})
-  }).then(r => r.json()).then(d => {
-    if (d.token) { token = d.token; localStorage.setItem('shortener-token', token); showDashboard(d.user); }
-    else showError('login-error', d.error);
-  }).catch(() => showError('login-error','Network error'));
+  showError('login-error','');
+  fetch(API + '/auth/google', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({idToken: response.credential}) })
+    .then(r => r.json()).then(d => {
+      if (d.token) { token = d.token; localStorage.setItem('shortener-token', token); showDashboard(d.user); }
+      else showError('login-error', d.error);
+    }).catch(() => showError('login-error','Network error'));
 }
 
 window.onload = () => {
   if (google?.accounts?.id) {
-    google.accounts.id.initialize({
-      client_id: '732178764042-thir2pl44efr33rova16ob2dun2q4o7p.apps.googleusercontent.com',
-      callback: handleGoogleResponse,
-      auto_select: false,
-    });
-    google.accounts.id.renderButton(document.getElementById('g_id_signin'), {
-      theme: 'filled_black', size: 'large', text: 'signin_with', width: 280
-    });
+    google.accounts.id.initialize({ client_id: '732178764042-thir2pl44efr33rova16ob2dun2q4o7p.apps.googleusercontent.com', callback: handleGoogleResponse, auto_select: false });
+    google.accounts.id.renderButton(document.getElementById('g_id_signin'), { theme: 'filled_black', size: 'large', text: 'signin_with', width: 280 });
   }
 };
-let token = localStorage.getItem('shortener-token');
-
-function showError(id, msg) { const el = document.getElementById(id); el.textContent = msg || ''; }
 
 async function login() {
+  showError('login-error','');
   const email = document.getElementById('login-email').value.trim();
   const pw = document.getElementById('login-pw').value;
   try {
@@ -131,31 +161,34 @@ async function login() {
 }
 
 async function register() {
+  showError('reg-error','');
   const email = document.getElementById('reg-email').value.trim();
   const pw = document.getElementById('reg-pw').value;
   const name = document.getElementById('reg-name').value.trim();
+  if (pw.length < 6) { showError('reg-error','Password must be at least 6 characters'); return; }
   try {
     const res = await fetch(API + '/register', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email, password: pw, name}) });
     const d = await res.json();
-    if (d.ok) { switchTab('login'); showError('login-error', 'Account created! Please login.'); }
+    if (d.ok) { switchTab({target: document.querySelector('.tab:first-child')}, 'login'); showError('login-error', 'Account created! Please sign in.'); }
     else showError('reg-error', d.error);
   } catch(e) { showError('reg-error', 'Network error'); }
 }
 
 function logout() { localStorage.removeItem('shortener-token'); token = null; location.reload(); }
 
-function switchTab(t) {
+function switchTab(e, t) {
   document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
-  event.target.classList.add('active');
+  e.target.classList.add('active');
   document.getElementById('login-form').style.display = t === 'login' ? '' : 'none';
   document.getElementById('register-form').style.display = t === 'register' ? '' : 'none';
 }
 
 async function createLink() {
+  showError('create-error','');
   const url = document.getElementById('new-url').value.trim();
   const code = document.getElementById('new-code').value.trim();
   try {
-    const res = await fetch(API + '/links', { method:'POST', headers:{'Content-Type':'application/json', 'Authorization': 'Bearer ' + token}, body: JSON.stringify({url, code: code || undefined}) });
+    const res = await fetch(API + '/links', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}, body: JSON.stringify({url, code: code || undefined}) });
     const d = await res.json();
     if (d.ok) { document.getElementById('new-url').value = ''; document.getElementById('new-code').value = ''; loadLinks(); }
     else showError('create-error', d.error);
@@ -166,66 +199,53 @@ async function loadLinks() {
   const res = await fetch(API + '/links', { headers: { 'Authorization': 'Bearer ' + token } });
   const links = await res.json();
   const el = document.getElementById('links-list');
-  if (!links.length) { el.innerHTML = '<div class="empty">No links yet. Create your first one above.</div>'; return; }
-  el.innerHTML = links.map(l => `
+  if (!links.length) { el.innerHTML = '<h2>Your Links</h2><div class="empty-state">No links yet. Create your first one above.</div>'; return; }
+  el.innerHTML = '<h2>Your Links</h2>' + links.map(l => `
     <div class="link-row" id="row-${l.code}">
       <div class="link-info">
-        <div class="link-short" onclick="copyLink('${l.shortURL}')">${l.shortURL}</div>
-        <div class="link-original" id="orig-${l.code}" title="${l.url}">${l.url}</div>
-        <div class="link-edit" id="edit-${l.code}" style="display:none;margin-top:0.3rem;">
-          <label style="font-size:0.65rem;color:var(--muted);">Short name</label>
-          <input id="edit-code-${l.code}" value="${l.code}" style="width:100%;padding:0.3rem 0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.75rem;margin-bottom:0.3rem;" />
-          <label style="font-size:0.65rem;color:var(--muted);">Destination URL</label>
-          <input id="edit-url-${l.code}" value="${l.url.replace(/"/g,'&quot;')}" style="width:100%;padding:0.3rem 0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.75rem;" />
-          <button class="btn-sm" onclick="saveEdit('${l.code}')" style="margin-top:0.3rem;">Save</button>
-          <button class="btn-sm btn-outline" onclick="cancelEdit('${l.code}')">Cancel</button>
+        <div class="link-short" title="Copy" onclick="copyLink('${l.shortURL}')">${l.shortURL}</div>
+        <div class="link-target" id="orig-${l.code}" title="${l.url}">${l.url}</div>
+        <div class="link-edit" id="edit-${l.code}">
+          <label>Short name</label><input id="edit-code-${l.code}" value="${l.code}" />
+          <label>Destination URL</label><input id="edit-url-${l.code}" value="${l.url.replace(/"/g,'&quot;')}" />
+          <button class="btn btn-sm" onclick="saveEdit('${l.code}')">Save</button>
+          <button class="btn btn-sm btn-outline" onclick="cancelEdit('${l.code}')">Cancel</button>
         </div>
       </div>
       <div class="link-clicks">${l.clicks || 0} clicks</div>
       <div class="link-actions">
-        <button class="btn-sm btn-outline" onclick="editLink('${l.code}')">Edit</button>
-        <button class="btn-sm btn-outline" onclick="copyLink('${l.shortURL}')">Copy</button>
-        <button class="btn-sm btn-danger" onclick="deleteLink('${l.code}')">Del</button>
+        <button class="btn btn-sm btn-outline" onclick="editLink('${l.code}')">Edit</button>
+        <button class="btn btn-sm btn-outline" onclick="copyLink('${l.shortURL}')">Copy</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteLink('${l.code}')">Del</button>
       </div>
     </div>
   `).join('');
 }
 
-function editLink(code) {
-  document.getElementById('orig-' + code).style.display = 'none';
-  document.getElementById('edit-' + code).style.display = '';
-}
-function cancelEdit(code) {
-  document.getElementById('orig-' + code).style.display = '';
-  document.getElementById('edit-' + code).style.display = 'none';
-}
+function editLink(code) { document.getElementById('orig-'+code).style.display='none'; document.getElementById('edit-'+code).style.display=''; }
+function cancelEdit(code) { document.getElementById('orig-'+code).style.display=''; document.getElementById('edit-'+code).style.display='none'; }
+
 async function saveEdit(code) {
-  const url = document.getElementById('edit-url-' + code).value.trim();
-  const newCode = document.getElementById('edit-code-' + code).value.trim();
+  const url = document.getElementById('edit-url-'+code).value.trim();
+  const newCode = document.getElementById('edit-code-'+code).value.trim();
   try {
     const res = await fetch(API + '/links/' + code, { method:'PUT', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}, body: JSON.stringify({url, newCode: newCode || undefined}) });
     const d = await res.json();
-    if (d.ok) { loadLinks(); }
-    else alert(d.error);
+    if (d.ok) loadLinks(); else alert(d.error);
   } catch(e) { alert('Network error'); }
 }
 
-function copyLink(url) { navigator.clipboard?.writeText(url); alert('Copied: ' + url); }
+function copyLink(url) { navigator.clipboard?.writeText(url); }
 
-async function deleteLink(code) {
-  if (!confirm('Delete this link?')) return;
-  await fetch(API + '/links/' + code, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token } });
-  loadLinks();
-}
+async function deleteLink(code) { if (confirm('Delete this link?')) { await fetch(API + '/links/' + code, { method:'DELETE', headers:{'Authorization':'Bearer '+token} }); loadLinks(); } }
 
 function showDashboard(user) {
   document.getElementById('auth-view').style.display = 'none';
   document.getElementById('dash-view').style.display = '';
-  document.getElementById('user-name').textContent = user.email;
+  document.getElementById('user-name').textContent = user.email || '';
   loadLinks();
 }
 
-// Init
 if (token) {
   fetch(API + '/links', { headers: { 'Authorization': 'Bearer ' + token } }).then(r => {
     if (r.ok) { document.getElementById('auth-view').style.display = 'none'; document.getElementById('dash-view').style.display = ''; loadLinks(); }

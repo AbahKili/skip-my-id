@@ -3,64 +3,140 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Skip My ID — Short Links, Bio Pages, QR Codes</title>
-  <meta name="description" content="Short links, bio pages, QR codes. Free." />
+  <title>Skip My ID — Free Link Shortener with Custom Names & Click Tracking</title>
+  <meta name="description" content="Shorten long URLs with custom names. Free link shortener with click analytics, custom slugs, and bio pages. No ads, no clutter." />
+  <link rel="canonical" href="https://skip.my.id" />
+  <meta property="og:title" content="Skip My ID — Free Link Shortener" />
+  <meta property="og:description" content="Shorten long URLs with custom names. Free. No ads." />
+  <meta property="og:url" content="https://skip.my.id" />
+  <meta property="og:type" content="website" />
+  <meta property="og:image" content="https://skip.my.id/og-image.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Skip My ID — Free Link Shortener" />
+  <meta name="twitter:description" content="Shorten long URLs with custom names. Free." />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Skip My ID",
+    "url": "https://skip.my.id",
+    "description": "Free link shortener with custom names and click tracking",
+    "applicationCategory": "UtilityApplication",
+    "operatingSystem": "Web",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+  }
+  </script>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%2322c55e'/><text x='16' y='22' text-anchor='middle' font-size='14' font-weight='bold' fill='%23020617'>S</text></svg>" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet" />
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    :root{--bg:#020617;--surface:#0f172a;--border:#1e293b;--accent:#22c55e;--text:#f8fafc;--muted:#94a3b8;--dim:#64748b;--red:#ef4444}
-    body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem}
-    h1,h2{font-family:'Space Grotesk',sans-serif}
-    .container{max-width:520px;width:100%;text-align:center}
-    .logo{font-family:'Space Grotesk',sans-serif;font-size:1.1rem;margin-bottom:2rem;color:var(--dim)}
-    .logo span{color:var(--accent);font-weight:700}
-    h1{font-size:2rem;margin-bottom:0.5rem}
-    h1 span{color:var(--accent)}
-    .sub{color:var(--muted);font-size:0.95rem;margin-bottom:2rem}
-    .shortener-box{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:1.5rem;margin-bottom:1rem}
-    .field{margin-bottom:0.75rem;text-align:left}
-    .field label{display:block;font-size:0.75rem;font-weight:600;color:var(--muted);margin-bottom:0.3rem;text-transform:uppercase;letter-spacing:0.05em}
-    .field input{width:100%;padding:0.65rem 0.8rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;font-family:inherit}
-    .field input:focus{outline:none;border-color:var(--accent)}
-    button{width:100%;padding:0.7rem;background:var(--accent);color:#020617;font-weight:700;border:none;border-radius:8px;font-size:0.9rem;cursor:pointer;font-family:inherit}
-    button:hover{background:#16a34a}
-    .result{margin-top:0.75rem;padding:0.6rem;background:var(--bg);border-radius:8px;display:none}
-    .result.show{display:block}
-    .result input{width:100%;background:transparent;border:none;color:var(--accent);font-size:0.85rem;text-align:center;cursor:pointer}
-    .features{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;margin:2rem 0}
-    .feature{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1rem;width:140px;text-align:center}
-    .feature .icon{font-size:1.3rem;margin-bottom:0.3rem}
-    .feature .label{font-size:0.75rem;color:var(--muted);font-weight:600}
-    .cta{color:var(--dim);font-size:0.8rem}
-    .cta a{color:var(--accent)}
-    .error{color:#ef4444;font-size:0.75rem;margin-top:0.3rem;display:none}
-    .error.show{display:block}
-    @media(max-width:480px){h1{font-size:1.5rem}}
+    :root{--bg:#020617;--surface:#0f172a;--border:#1e293b;--accent:#22c55e;--accent-hover:#16a34a;--text:#f8fafc;--muted:#94a3b8;--dim:#64748b;--red:#ef4444;--radius:12px}
+    html{scroll-behavior:smooth}
+    body{font-family:'Plus Jakarta Sans',-apple-system,sans-serif;background:var(--bg);color:var(--text);line-height:1.6;min-height:100vh}
+    h1,h2,h3{font-family:'Space Grotesk',sans-serif}
+    a{color:var(--accent);text-decoration:none;transition:color 0.2s}
+    a:hover{color:var(--accent-hover)}
+    :focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+    .nav{padding:1rem 2rem;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.04)}
+    .logo{font-family:'Space Grotesk',sans-serif;font-size:1.15rem;font-weight:700;color:var(--text)}
+    .logo span{color:var(--accent)}
+    .nav-cta{background:var(--accent);color:#020617;font-weight:600;padding:0.5rem 1.2rem;border-radius:8px;font-size:0.82rem;transition:background 0.2s,box-shadow 0.2s}
+    .nav-cta:hover{background:var(--accent-hover);box-shadow:0 0 18px rgba(34,197,94,0.2);color:#020617}
+
+    .hero{text-align:center;padding:5rem 1.5rem 3rem;max-width:640px;margin:0 auto}
+    .hero-badge{display:inline-block;background:rgba(34,197,94,0.1);color:var(--accent);border:1px solid rgba(34,197,94,0.15);border-radius:999px;padding:0.25rem 0.9rem;font-size:0.7rem;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;margin-bottom:1.2rem}
+    .hero h1{font-size:clamp(1.8rem,5vw,2.8rem);font-weight:700;line-height:1.15;margin-bottom:0.75rem}
+    .hero h1 span{color:var(--accent)}
+    .hero p{color:var(--muted);font-size:1rem;max-width:460px;margin:0 auto 2rem;line-height:1.55}
+
+    .shorten-box{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:1.5rem;max-width:500px;margin:0 auto 0}
+    .field-row{display:flex;gap:0.5rem;flex-wrap:wrap}
+    .field-row input{flex:1;min-width:200px;padding:0.7rem 0.9rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;font-family:inherit;transition:border-color 0.2s}
+    .field-row input:focus{outline:none;border-color:var(--accent)}
+    .field-row input::placeholder{color:var(--dim)}
+    .btn{background:var(--accent);color:#020617;font-weight:600;border:none;border-radius:8px;padding:0.7rem 1.4rem;font-size:0.85rem;cursor:pointer;font-family:inherit;transition:background 0.2s,box-shadow 0.2s;white-space:nowrap}
+    .btn:hover{background:var(--accent-hover);box-shadow:0 0 20px rgba(34,197,94,0.2)}
+    .btn:disabled{opacity:0.5;cursor:not-allowed}
+    .result{background:rgba(34,197,94,0.05);border:1px solid rgba(34,197,94,0.2);border-radius:8px;padding:0.6rem 0.8rem;margin-top:0.75rem;display:none;align-items:center;gap:0.5rem}
+    .result.show{display:flex}
+    .result input{flex:1;background:transparent;border:none;color:var(--accent);font-size:0.85rem;cursor:pointer;font-family:monospace}
+    .result .copied{font-size:0.7rem;color:var(--dim);white-space:nowrap}
+    .code-status{font-size:0.7rem;margin-top:0.2rem;display:inline-block;min-height:1.2em}
+
+    .features{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;max-width:600px;margin:3rem auto;padding:0 1.5rem}
+    .feature{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.2rem;text-align:center;transition:border-color 0.2s}
+    .feature:hover{border-color:rgba(34,197,94,0.2)}
+    .feature svg{width:28px;height:28px;stroke:var(--accent);margin-bottom:0.5rem}
+    .feature .label{font-size:0.82rem;font-weight:600;color:var(--text);margin-bottom:0.2rem}
+    .feature .desc{font-size:0.72rem;color:var(--muted);line-height:1.4}
+
+    footer{text-align:center;padding:2.5rem 1.5rem;border-top:1px solid rgba(255,255,255,0.04);color:var(--dim);font-size:0.75rem}
+    footer a{color:var(--muted)}
+    .error-msg{color:var(--red);font-size:0.75rem;margin-top:0.35rem;display:none}
+    .error-msg.show{display:block}
+
+    @media(max-width:480px){
+      .nav{padding:0.9rem 1.2rem}.hero{padding:3rem 1rem 2rem}.field-row{flex-direction:column}
+      .field-row .btn{width:100%}.features{grid-template-columns:1fr 1fr;gap:0.6rem}
+    }
   </style>
 </head>
 <body>
-<div class="container">
-  <div class="logo">Skip<span>My</span>ID</div>
-  <h1>Short links.<br><span>Skip the clutter.</span></h1>
-  <p class="sub">Paste a long URL. Get a clean short link. Free. No account needed for your first link.</p>
 
-  <div class="shortener-box" id="quick-box">
-    <div class="field"><label>Long URL</label><input id="quick-url" type="url" placeholder="https://..." autocomplete="off" /></div>
-    <div class="field"><label>Custom name (optional)</label><input id="quick-code" type="text" placeholder="my-link" autocomplete="off" maxlength="20" oninput="checkAvailability()" /><span id="code-status" style="font-size:0.7rem;margin-top:0.2rem;display:inline-block"></span></div>
-    <button onclick="quickShorten()">Shorten →</button>
-    <div class="error" id="quick-error"></div>
-    <div class="result" id="quick-result"><input id="quick-output" readonly onclick="this.select();document.execCommand('copy')" /></div>
-  </div>
+<nav class="nav">
+  <a href="/" class="logo">Skip<span>My</span>ID</a>
+  <a href="/dashboard" class="nav-cta">Sign In</a>
+</nav>
 
-  <div class="features">
-    <div class="feature"><div class="icon">🔗</div><div class="label">Short Links</div></div>
-    <div class="feature"><div class="icon">📊</div><div class="label">Click Stats</div></div>
-    <div class="feature"><div class="icon">👤</div><div class="label">Custom Names</div></div>
-  </div>
+<main>
+  <section class="hero">
+    <div class="hero-badge">Link Shortener</div>
+    <h1>Long URLs?<br><span>Skip them.</span></h1>
+    <p>Create short, branded links with custom names. Track clicks. Free. No ads. No clutter.</p>
 
-  <p class="cta"><a href="/dashboard">Sign in</a> to manage your links. Powered by <a href="https://nerdstudio.online">Nerd Studio</a>.</p>
-</div>
+    <div class="shorten-box">
+      <div class="field-row">
+        <input id="quick-url" type="text" placeholder="Paste your long URL here..." autocomplete="off" />
+        <button class="btn" onclick="quickShorten()">Shorten</button>
+      </div>
+      <input id="quick-code" type="text" placeholder="Custom name (optional) — e.g. my-link" autocomplete="off" maxlength="20" style="width:100%;margin-top:0.5rem;padding:0.7rem 0.9rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:0.85rem;font-family:inherit;display:none" oninput="checkAvailability()" />
+      <span class="code-status" id="code-status"></span>
+      <div class="error-msg" id="quick-error"></div>
+      <div class="result" id="quick-result">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+        <input id="quick-output" readonly onclick="this.select();navigator.clipboard.writeText(this.value);document.getElementById('copied-msg').textContent='Copied!'" />
+        <span class="copied" id="copied-msg"></span>
+      </div>
+      <div style="margin-top:0.5rem;text-align:center">
+        <button id="custom-toggle" class="btn" style="background:transparent;border:1px solid var(--border);color:var(--muted);font-size:0.75rem;padding:0.35rem 0.8rem" onclick="toggleCustom()">+ Custom name</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="features">
+    <div class="feature">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+      <div class="label">Custom Names</div>
+      <div class="desc">Choose your own short link name. Make it memorable.</div>
+    </div>
+    <div class="feature">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      <div class="label">Click Tracking</div>
+      <div class="desc">See how many people click. Know what works.</div>
+    </div>
+    <div class="feature">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M12 8v8M8 12h8"/></svg>
+      <div class="label">QR Codes</div>
+      <div class="desc">Every link gets a QR. Print it. Share it anywhere.</div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <p>Powered by <a href="https://nerdstudio.online">Nerd Studio</a>. No ads. No tracking scripts. Just links.</p>
+</footer>
 
 <script>
 let checkTimer;
@@ -79,6 +155,13 @@ async function checkAvailability() {
   }, 400);
 }
 
+function toggleCustom() {
+  const el = document.getElementById('quick-code');
+  const btn = document.getElementById('custom-toggle');
+  if (el.style.display === 'none') { el.style.display = ''; btn.textContent = '− Custom name'; }
+  else { el.style.display = 'none'; el.value = ''; btn.textContent = '+ Custom name'; document.getElementById('code-status').textContent = ''; }
+}
+
 async function quickShorten() {
   const url = document.getElementById('quick-url').value.trim();
   const code = document.getElementById('quick-code').value.trim();
@@ -86,21 +169,17 @@ async function quickShorten() {
   errEl.classList.remove('show');
   if (!url) { errEl.textContent = 'Please enter a URL'; errEl.classList.add('show'); return; }
   if (!url.includes('.')) { errEl.textContent = 'Please enter a valid URL'; errEl.classList.add('show'); return; }
+  const btn = document.querySelector('.btn');
+  btn.disabled = true; btn.textContent = '...';
   try {
-    const res = await fetch('/api/links', {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({url, code: code || undefined})
-    });
-    const data = await res.json();
-    if (data.ok) {
-      document.getElementById('quick-output').value = data.link.shortURL;
+    const res = await fetch('/api/links', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({url, code: code || undefined}) });
+    const d = await res.json();
+    if (d.ok) {
+      document.getElementById('quick-output').value = d.link.shortURL;
       document.getElementById('quick-result').classList.add('show');
-    } else {
-      errEl.textContent = data.error || 'Failed'; errEl.classList.add('show');
-    }
-  } catch(e) {
-    errEl.textContent = 'Network error'; errEl.classList.add('show');
-  }
+    } else { errEl.textContent = d.error || 'Failed'; errEl.classList.add('show'); }
+  } catch(e) { errEl.textContent = 'Network error'; errEl.classList.add('show'); }
+  btn.disabled = false; btn.textContent = 'Shorten';
 }
 </script>
 </body>
