@@ -222,8 +222,8 @@ async function loadLinks() {
   `).join('');
 }
 
-function editLink(code) { document.getElementById('orig-'+code).style.display='none'; document.getElementById('edit-'+code).style.display=''; }
-function cancelEdit(code) { document.getElementById('orig-'+code).style.display=''; document.getElementById('edit-'+code).style.display='none'; }
+function editLink(code) { document.getElementById('orig-'+code).style.display='none'; document.getElementById('edit-'+code).style.display='block'; }
+function cancelEdit(code) { document.getElementById('orig-'+code).style.display='block'; document.getElementById('edit-'+code).style.display='none'; }
 
 async function saveEdit(code) {
   const url = document.getElementById('edit-url-'+code).value.trim();
