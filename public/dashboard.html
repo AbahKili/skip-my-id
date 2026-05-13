@@ -168,18 +168,42 @@ async function loadLinks() {
   const el = document.getElementById('links-list');
   if (!links.length) { el.innerHTML = '<div class="empty">No links yet. Create your first one above.</div>'; return; }
   el.innerHTML = links.map(l => `
-    <div class="link-row">
+    <div class="link-row" id="row-${l.code}">
       <div class="link-info">
         <div class="link-short" onclick="copyLink('${l.shortURL}')">${l.shortURL}</div>
-        <div class="link-original" title="${l.url}">${l.url}</div>
+        <div class="link-original" id="orig-${l.code}" title="${l.url}">${l.url}</div>
+        <div class="link-edit" id="edit-${l.code}" style="display:none;margin-top:0.3rem;">
+          <input id="edit-url-${l.code}" value="${l.url.replace(/"/g,'&quot;')}" style="width:100%;padding:0.3rem 0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.75rem;" />
+          <button class="btn-sm" onclick="saveEdit('${l.code}')" style="margin-top:0.3rem;">Save</button>
+          <button class="btn-sm btn-outline" onclick="cancelEdit('${l.code}')">Cancel</button>
+        </div>
       </div>
       <div class="link-clicks">${l.clicks || 0} clicks</div>
       <div class="link-actions">
+        <button class="btn-sm btn-outline" onclick="editLink('${l.code}')">Edit</button>
         <button class="btn-sm btn-outline" onclick="copyLink('${l.shortURL}')">Copy</button>
         <button class="btn-sm btn-danger" onclick="deleteLink('${l.code}')">Del</button>
       </div>
     </div>
   `).join('');
+}
+
+function editLink(code) {
+  document.getElementById('orig-' + code).style.display = 'none';
+  document.getElementById('edit-' + code).style.display = '';
+}
+function cancelEdit(code) {
+  document.getElementById('orig-' + code).style.display = '';
+  document.getElementById('edit-' + code).style.display = 'none';
+}
+async function saveEdit(code) {
+  const url = document.getElementById('edit-url-' + code).value.trim();
+  try {
+    const res = await fetch(API + '/links/' + code, { method:'PUT', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}, body: JSON.stringify({url}) });
+    const d = await res.json();
+    if (d.ok) { loadLinks(); }
+    else alert(d.error);
+  } catch(e) { alert('Network error'); }
 }
 
 function copyLink(url) { navigator.clipboard?.writeText(url); alert('Copied: ' + url); }

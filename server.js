@@ -148,6 +148,17 @@ app.get('/api/links', auth, (req, res) => {
   res.json(links.map(l => ({ ...l, shortURL: `https://skip.my.id/${l.code}` })));
 });
 
+app.put('/api/links/:code', auth, (req, res) => {
+  const { url, title } = req.body || {};
+  if (!url) return res.status(400).json({ error: 'URL required' });
+  let finalURL = url.trim();
+  if (!/^https?:\/\//i.test(finalURL)) finalURL = 'https://' + finalURL;
+  const link = db.prepare('SELECT * FROM links WHERE code = ? AND user_id = ?').get(req.params.code, req.userId);
+  if (!link) return res.status(404).json({ error: 'Link not found' });
+  db.prepare('UPDATE links SET url = ?, title = ? WHERE code = ? AND user_id = ?').run(finalURL, title || link.title, req.params.code, req.userId);
+  res.json({ ok: true, link: { ...link, url: finalURL, title: title || link.title, shortURL: `https://skip.my.id/${link.code}` } });
+});
+
 app.delete('/api/links/:code', auth, (req, res) => {
   db.prepare('DELETE FROM links WHERE code = ? AND user_id = ?').run(req.params.code, req.userId);
   res.json({ ok: true });
