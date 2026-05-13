@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Microsite Editor — Skip My ID</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet" />
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{--bg:#020617;--surface:#0f172a;--border:#1e293b;--accent:#22c55e;--text:#f8fafc;--muted:#94a3b8;--dim:#64748b;--red:#ef4444}
+    body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column}
+    .header{padding:0.7rem 1.5rem;background:var(--surface);border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+    .header h1{font-family:'Space Grotesk',sans-serif;font-size:1rem}
+    .header a{color:var(--accent);font-size:0.8rem}
+    .main{display:flex;flex:1;overflow:hidden}
+    .editor-panel{width:380px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto}
+    .panel-section{padding:1rem;border-bottom:1px solid var(--border)}
+    .panel-section h3{font-size:0.7rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--dim);margin-bottom:0.75rem}
+    .btn{background:var(--accent);color:#020617;font-weight:600;border:none;border-radius:8px;padding:0.55rem 1rem;cursor:pointer;font-size:0.8rem;font-family:inherit;transition:background 0.2s}
+    .btn:hover{background:#16a34a}
+    .btn-sm{padding:0.35rem 0.7rem;font-size:0.7rem;border-radius:6px}
+    .btn-outline{background:transparent;border:1px solid var(--border);color:var(--text)}
+    .btn-outline:hover{background:rgba(255,255,255,0.03);color:var(--accent)}
+    .btn-danger{background:transparent;border:1px solid rgba(239,68,68,0.2);color:var(--red)}
+    .btn-danger:hover{background:rgba(239,68,68,0.08)}
+    .field{margin-bottom:0.6rem}
+    .field label{display:block;font-size:0.65rem;font-weight:600;color:var(--muted);margin-bottom:0.2rem;text-transform:uppercase;letter-spacing:0.05em}
+    .field input,.field textarea{width:100%;padding:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.8rem;font-family:inherit}
+    .field input:focus,.field textarea:focus{outline:none;border-color:var(--accent)}
+    .add-btns{display:flex;gap:0.4rem;flex-wrap:wrap}
+    .add-btn{flex:1;min-width:80px;padding:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;text-align:center;cursor:pointer;color:var(--muted);font-size:0.7rem;transition:all 0.2s}
+    .add-btn:hover{border-color:var(--accent);color:var(--text)}
+    .comp-item{display:flex;align-items:center;gap:0.5rem;padding:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;margin-bottom:0.4rem;cursor:pointer;font-size:0.75rem;transition:border-color 0.2s}
+    .comp-item.active{border-color:var(--accent)}
+    .comp-item .icon{font-size:0.9rem;width:20px;text-align:center}
+    .comp-item .label{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .comp-item .actions{display:flex;gap:0.2rem}
+    .preview-panel{flex:1;display:flex;align-items:center;justify-content:center;padding:2rem;background:var(--bg)}
+    .preview-frame{width:400px;max-width:100%;text-align:center}
+    .preview-frame h2{font-family:'Space Grotesk',sans-serif;font-size:1.4rem;margin-bottom:0.3rem}
+    .preview-frame .desc{color:var(--muted);font-size:0.8rem;margin-bottom:1.2rem}
+    .preview-btn{display:block;width:100%;padding:0.7rem;background:var(--surface);border:1px solid var(--border);border-radius:10px;color:var(--text);text-decoration:none;font-weight:500;margin-bottom:0.4rem;font-size:0.85rem;transition:all 0.2s;cursor:pointer;text-align:center}
+    .preview-btn:hover{border-color:var(--accent)}
+    .preview-text{color:var(--muted);font-size:0.85rem;line-height:1.6;margin-bottom:1rem}
+    .preview-divider{height:1px;background:var(--border);margin:1rem 0}
+    .comp-editor{display:none;margin-top:0.5rem;padding:0.75rem;background:var(--bg);border:1px solid var(--accent);border-radius:8px}
+    .comp-editor.active{display:block}
+    @media(max-width:768px){.main{flex-direction:column}.editor-panel{width:100%;max-height:50vh}.preview-panel{flex:1}}
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Microsite Editor</h1>
+  <div>
+    <span id="save-status" style="font-size:0.7rem;color:var(--muted);margin-right:0.5rem"></span>
+    <a href="/dashboard">← Dashboard</a>
+  </div>
+</div>
+
+<div class="main">
+  <!-- Left: Editor -->
+  <div class="editor-panel">
+    <div class="panel-section">
+      <h3>Settings</h3>
+      <div class="field"><label>Title</label><input id="ms-title" onchange="autoSave()" /></div>
+      <div class="field"><label>Description</label><input id="ms-desc" onchange="autoSave()" /></div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Add Component</h3>
+      <div class="add-btns">
+        <button class="add-btn" onclick="addComponent('link')">🔗 Link</button>
+        <button class="add-btn" onclick="addComponent('text')">📝 Text</button>
+        <button class="add-btn" onclick="addComponent('divider')">➖ Divider</button>
+      </div>
+    </div>
+
+    <div class="panel-section" style="flex:1">
+      <h3>Components <span id="comp-count" style="color:var(--dim)">(0)</span></h3>
+      <div id="comp-list"><p style="color:var(--dim);font-size:0.75rem">No components. Add one above.</p></div>
+    </div>
+  </div>
+
+  <!-- Right: Live Preview -->
+  <div class="preview-panel">
+    <div class="preview-frame" id="preview">
+      <h2 id="preview-title">My Microsite</h2>
+      <p class="desc" id="preview-desc"></p>
+      <div id="preview-components"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const slug = location.pathname.split('/').pop();
+const token = localStorage.getItem('shortener-token');
+let components = [];
+let selectedComp = -1;
+
+async function load() {
+  const res = await fetch('/api/microsites', {headers:{'Authorization':'Bearer '+token}});
+  const sites = await res.json();
+  const site = sites.find(s => s.slug === slug);
+  if (!site) { alert('Microsite not found'); location.href='/dashboard'; return; }
+  document.getElementById('ms-title').value = site.title || '';
+  document.getElementById('ms-desc').value = site.description || '';
+  components = site.components || [];
+  renderAll();
+}
+
+function renderAll() {
+  document.getElementById('preview-title').textContent = document.getElementById('ms-title').value || 'My Microsite';
+  document.getElementById('preview-desc').textContent = document.getElementById('ms-desc').value || '';
+  document.getElementById('comp-count').textContent = '(' + components.length + ')';
+
+  // Editor list
+  const list = document.getElementById('comp-list');
+  if (!components.length) { list.innerHTML = '<p style="color:var(--dim);font-size:0.75rem">No components. Add one above.</p>'; }
+  else {
+    list.innerHTML = components.map((c,i) => `
+      <div class="comp-item ${i===selectedComp?'active':''}" onclick="selectComp(${i})">
+        <span class="icon">${c.kind==='link'?'🔗':c.kind==='text'?'📝':'➖'}</span>
+        <span class="label">${c.label||c.content||'Untitled'}</span>
+        <span class="actions">
+          <button class="btn btn-sm btn-outline" onclick="event.stopPropagation();moveComp(${i},-1)" ${i===0?'disabled':''}>↑</button>
+          <button class="btn btn-sm btn-outline" onclick="event.stopPropagation();moveComp(${i},1)" ${i===components.length-1?'disabled':''}>↓</button>
+          <button class="btn btn-sm btn-danger" onclick="event.stopPropagation();removeComp(${i})">×</button>
+        </span>
+      </div>
+      <div class="comp-editor ${i===selectedComp?'active':''}" id="comp-editor-${i}">
+        ${c.kind==='link'?`
+          <div class="field"><label>Button Text</label><input value="${c.label||''}" onchange="updateComp(${i},'label',this.value)" /></div>
+          <div class="field"><label>URL</label><input value="${c.url||''}" onchange="updateComp(${i},'url',this.value)" /></div>
+        `:c.kind==='text'?`
+          <div class="field"><label>Text</label><textarea rows="2" onchange="updateComp(${i},'content',this.value)">${c.content||''}</textarea></div>
+        `:`<p style="font-size:0.7rem;color:var(--dim)">Visual separator</p>`}
+      </div>
+    `).join('');
+  }
+
+  // Preview
+  const preview = document.getElementById('preview-components');
+  preview.innerHTML = components.map(c => {
+    if (c.kind === 'link') return `<a class="preview-btn" href="${c.url||'#'}" target="_blank">${c.label||'Link'}</a>`;
+    if (c.kind === 'text') return `<div class="preview-text">${c.content||''}</div>`;
+    if (c.kind === 'divider') return '<div class="preview-divider"></div>';
+    return '';
+  }).join('');
+}
+
+function addComponent(kind) {
+  const defaults = {link:{label:'New Link',url:'https://'},text:{content:'Enter text here...'},divider:{}};
+  components.push({kind, ...(defaults[kind]||{})});
+  selectedComp = components.length - 1;
+  renderAll();
+  autoSave();
+}
+
+function removeComp(i) { components.splice(i,1); selectedComp=-1; renderAll(); autoSave(); }
+function moveComp(i,dir) { const t=i+dir; if(t<0||t>=components.length)return; [components[i],components[t]]=[components[t],components[i]]; selectedComp=t; renderAll(); autoSave(); }
+function selectComp(i) { selectedComp = selectedComp===i ? -1 : i; renderAll(); }
+function updateComp(i,key,val) { components[i][key]=val; renderAll(); autoSave(); }
+
+let saveTimer;
+function autoSave() {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    document.getElementById('save-status').textContent = 'Saving...';
+    await fetch('/api/microsites/'+slug, {
+      method:'PUT', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+      body: JSON.stringify({
+        title: document.getElementById('ms-title').value,
+        description: document.getElementById('ms-desc').value,
+        components
+      })
+    });
+    document.getElementById('save-status').textContent = '✓ Saved';
+    setTimeout(() => document.getElementById('save-status').textContent='', 1500);
+  }, 500);
+}
+
+load();
+</script>
+</body>
+</html>

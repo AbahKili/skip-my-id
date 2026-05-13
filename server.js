@@ -201,6 +201,7 @@ app.delete('/api/links/:code', auth, (req, res) => {
 });
 
 // ── Page Routes (MUST be before /:code) ──
+app.get('/dashboard/microsite/:slug', (req, res) => res.sendFile(path.join(__dirname, 'public', 'microsite-editor.html')));
 app.get('/dashboard', (req, res) => res.sendFile(path.join(__dirname, 'public', 'dashboard.html')));
 app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 
