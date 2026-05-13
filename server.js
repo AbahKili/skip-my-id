@@ -44,6 +44,17 @@ db.exec(`
     created_at TEXT DEFAULT (datetime('now')),
     FOREIGN KEY(link_id) REFERENCES links(id)
   );
+  CREATE TABLE IF NOT EXISTS microsites (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    slug TEXT UNIQUE NOT NULL,
+    title TEXT,
+    description TEXT,
+    components TEXT DEFAULT '[]',
+    clicks INTEGER DEFAULT 0,
+    created_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY(user_id) REFERENCES users(id)
+  );
 `);
 
 // ── Middleware ──
@@ -253,6 +264,56 @@ app.get('/api/check/:code', (req, res) => {
 });
 
 // ── Health ──
+// ── Microsite Routes ──
+app.post('/api/microsites', auth, (req, res) => {
+  const { title, slug, description, components } = req.body || {};
+  if (!title) return res.status(400).json({ error: 'Title required' });
+  const finalSlug = (slug || title.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 30));
+  try {
+    db.prepare('INSERT INTO microsites (user_id, slug, title, description, components) VALUES (?,?,?,?,?)').run(
+      req.userId, finalSlug, title, description || '', JSON.stringify(components || [])
+    );
+    res.json({ ok: true, microsite: { slug: finalSlug, title, url: `https://skip.my.id/${finalSlug}` } });
+  } catch (err) {
+    if (err.message.includes('UNIQUE')) return res.status(409).json({ error: 'Slug already taken' });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/microsites', auth, (req, res) => {
+  const sites = db.prepare('SELECT * FROM microsites WHERE user_id = ? ORDER BY created_at DESC').all(req.userId);
+  res.json(sites.map(s => ({ ...s, url: `https://skip.my.id/${s.slug}`, components: JSON.parse(s.components || '[]') })));
+});
+
+app.put('/api/microsites/:slug', auth, (req, res) => {
+  const { title, description, components, newSlug } = req.body || {};
+  const site = db.prepare('SELECT * FROM microsites WHERE slug = ? AND user_id = ?').get(req.params.slug, req.userId);
+  if (!site) return res.status(404).json({ error: 'Not found' });
+  db.prepare('UPDATE microsites SET title=?, description=?, components=?, slug=? WHERE slug=? AND user_id=?').run(
+    title || site.title, description || site.description, JSON.stringify(components || JSON.parse(site.components || '[]')),
+    newSlug || site.slug, req.params.slug, req.userId
+  );
+  res.json({ ok: true });
+});
+
+app.delete('/api/microsites/:slug', auth, (req, res) => {
+  db.prepare('DELETE FROM microsites WHERE slug = ? AND user_id = ?').run(req.params.slug, req.userId);
+  res.json({ ok: true });
+});
+
+// Public microsite page — MUST be before link /:code redirect
+app.get('/micro/:slug', (req, res) => {
+  const site = db.prepare('SELECT * FROM microsites WHERE slug = ?').get(req.params.slug);
+  if (!site) return res.status(404).send('Microsite not found');
+  db.prepare('UPDATE microsites SET clicks = clicks + 1 WHERE id = ?').run(site.id);
+  let components = [];
+  try { components = JSON.parse(site.components || '[]'); } catch {}
+  const buttonsHTML = components.map(c => `
+    <a href="${c.url || '#'}" target="_blank" rel="noopener" class="btn">${c.label || 'Link'}</a>
+  `).join('\n');
+  res.send(`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>${site.title} — Skip My ID</title><meta property="og:title" content="${site.title}"/><meta name="description" content="${site.description||''}"/><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Plus Jakarta Sans',-apple-system,sans-serif;background:#020617;color:#f8fafc;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2rem}.card{max-width:400px;width:100%;text-align:center}h1{font-size:1.5rem;margin-bottom:0.3rem;font-family:'Space Grotesk',sans-serif}.sub{color:#94a3b8;font-size:0.85rem;margin-bottom:1.5rem}.btn{display:block;width:100%;padding:0.75rem;background:#0f172a;border:1px solid #1e293b;border-radius:10px;color:#f8fafc;text-decoration:none;font-weight:500;margin-bottom:0.5rem;transition:border-color 0.2s,background 0.2s;font-size:0.9rem}.btn:hover{border-color:#22c55e;background:rgba(34,197,94,0.05)}footer{position:fixed;bottom:1rem;color:#475569;font-size:0.7rem}footer a{color:#22c55e;text-decoration:none}</style></head><body><div class="card"><h1>${site.title}</h1>${site.description?`<p class="sub">${site.description}</p>`:''}${buttonsHTML}</div><footer>Powered by <a href="https://skip.my.id">Skip My ID</a></footer></body></html>`);
+});
+
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
 // Serve dashboard SPA

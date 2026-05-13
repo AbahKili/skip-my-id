@@ -111,6 +111,12 @@
 
 <!-- Dashboard -->
 <div class="container" id="dash-view" style="display:none">
+  <div style="display:flex;gap:0.5rem;margin-bottom:1rem;">
+    <button class="btn" id="tab-links" onclick="switchDashTab('links')" style="flex:1">🔗 Short Links</button>
+    <button class="btn btn-outline" id="tab-microsites" onclick="switchDashTab('microsites')" style="flex:1">📱 Microsites</button>
+  </div>
+
+  <div id="tab-content-links">
   <div class="card">
     <h2>Create Short Link</h2>
     <div class="field"><label>Destination URL</label><input id="new-url" type="text" placeholder="https://example.com/your-long-url" /></div>
@@ -122,6 +128,22 @@
   <div class="card" id="links-list">
     <h2>Your Links</h2>
     <div class="empty-state">Loading...</div>
+  </div>
+  </div>
+
+  <div id="tab-content-microsites" style="display:none">
+  <div class="card">
+    <h2>Create Microsite</h2>
+    <div class="field"><label>Title</label><input id="new-ms-title" type="text" placeholder="My Landing Page" /></div>
+    <div class="field"><label>Custom slug (optional)</label><input id="new-ms-slug" type="text" placeholder="my-page" maxlength="30" /></div>
+    <div class="field"><label>Description (optional)</label><input id="new-ms-desc" type="text" placeholder="A collection of useful links" /></div>
+    <button class="btn" onclick="createMicrosite()">Create Microsite</button>
+    <div class="error" id="create-ms-error"></div>
+  </div>
+  <div class="card" id="microsites-list">
+    <h2>Your Microsites</h2>
+    <div class="empty-state">Loading...</div>
+  </div>
   </div>
 </div>
 
@@ -265,6 +287,54 @@ async function saveEdit(code) {
 function copyLink(url) { navigator.clipboard?.writeText(url); }
 
 async function deleteLink(code) { if (!confirm('Delete this link?')) return; try { const res = await fetch(API + '/links/' + code, { method:'DELETE', headers:{'Authorization':'Bearer '+token} }); if (!res.ok) { const d = await res.json(); alert(d.error || 'Failed to delete'); return; } loadLinks(); } catch(e) { alert('Network error: ' + e.message); } }
+
+function switchDashTab(tab) {
+  document.getElementById('tab-links').className = tab==='links'?'btn':'btn btn-outline';
+  document.getElementById('tab-microsites').className = tab==='microsites'?'btn':'btn btn-outline';
+  document.getElementById('tab-content-links').style.display = tab==='links'?'':'none';
+  document.getElementById('tab-content-microsites').style.display = tab==='microsites'?'':'none';
+  if (tab==='microsites') loadMicrosites(); else loadLinks();
+}
+
+async function createMicrosite() {
+  showError('create-ms-error','');
+  const title = document.getElementById('new-ms-title').value.trim();
+  const slug = document.getElementById('new-ms-slug').value.trim();
+  const description = document.getElementById('new-ms-desc').value.trim();
+  if (!title) { showError('create-ms-error', 'Title required'); return; }
+  try {
+    const res = await fetch(API + '/microsites', { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+token}, body: JSON.stringify({title, slug, description}) });
+    const d = await res.json();
+    if (d.ok) { document.getElementById('new-ms-title').value=''; document.getElementById('new-ms-slug').value=''; document.getElementById('new-ms-desc').value=''; loadMicrosites(); }
+    else showError('create-ms-error', d.error);
+  } catch(e) { showError('create-ms-error', 'Network error'); }
+}
+
+async function loadMicrosites() {
+  const res = await fetch(API + '/microsites', { headers: { 'Authorization': 'Bearer ' + token } });
+  const sites = await res.json();
+  const el = document.getElementById('microsites-list');
+  if (!sites.length) { el.innerHTML = '<h2>Your Microsites</h2><div class="empty-state">No microsites yet. Create one above.</div>'; return; }
+  el.innerHTML = '<h2>Your Microsites</h2>' + sites.map(s => `
+    <div class="link-row">
+      <div class="link-info">
+        <div class="link-short" onclick="copyLink('${s.url}')">${s.url}</div>
+        <div class="link-target">${s.title} · ${(s.components||[]).length} buttons</div>
+      </div>
+      <div class="link-clicks">${s.clicks||0} views</div>
+      <div class="link-actions">
+        <button class="btn btn-sm btn-outline" onclick="copyLink('${s.url}')">Copy</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteMicrosite('${s.slug}')">Del</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function deleteMicrosite(slug) {
+  if (!confirm('Delete this microsite?')) return;
+  await fetch(API + '/microsites/' + slug, { method:'DELETE', headers:{'Authorization':'Bearer '+token} });
+  loadMicrosites();
+}
 
 function showDashboard(user) {
   document.getElementById('auth-view').style.display = 'none';
