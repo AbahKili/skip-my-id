@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dashboard — skip.my.id</title>
+  <title>Dashboard — Skip My ID</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet" />
   <style>
@@ -49,7 +49,7 @@
 <body>
 
 <div class="nav">
-  <a href="/" class="logo">s.nerd<span>studio</span></a>
+  <a href="/" class="logo">Skip<span>My</span>ID</a>
   <div><span id="user-name" style="color:var(--muted);font-size:0.8rem;margin-right:0.5rem;"></span><button class="btn-outline btn-sm" onclick="logout()">Logout</button></div>
 </div>
 
@@ -61,6 +61,8 @@
       <div class="field"><label>Email</label><input id="login-email" type="email" placeholder="you@email.com" /></div>
       <div class="field"><label>Password</label><input id="login-pw" type="password" /></div>
       <button onclick="login()">Login →</button>
+      <div style="margin:0.5rem 0;text-align:center;color:var(--dim);font-size:0.7rem;">or</div>
+      <div id="g_id_signin" style="display:flex;justify-content:center;"></div>
       <div class="error" id="login-error"></div>
     </div>
     <div id="register-form" style="display:none">
@@ -86,8 +88,33 @@
   <div class="card" id="links-list"><div class="empty">Loading...</div></div>
 </div>
 
+<script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
 const API = '/api';
+
+// Google Sign-In callback
+function handleGoogleResponse(response) {
+  fetch(API + '/auth/google', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({idToken: response.credential})
+  }).then(r => r.json()).then(d => {
+    if (d.token) { token = d.token; localStorage.setItem('shortener-token', token); showDashboard(d.user); }
+    else showError('login-error', d.error);
+  }).catch(() => showError('login-error','Network error'));
+}
+
+window.onload = () => {
+  if (google?.accounts?.id) {
+    google.accounts.id.initialize({
+      client_id: '732178764042-thir2pl44efr33rova16ob2dun2q4o7p.apps.googleusercontent.com',
+      callback: handleGoogleResponse,
+      auto_select: false,
+    });
+    google.accounts.id.renderButton(document.getElementById('g_id_signin'), {
+      theme: 'filled_black', size: 'large', text: 'signin_with', width: 280
+    });
+  }
+};
 let token = localStorage.getItem('shortener-token');
 
 function showError(id, msg) { const el = document.getElementById(id); el.textContent = msg || ''; }

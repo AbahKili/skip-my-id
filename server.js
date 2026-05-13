@@ -17,7 +17,9 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     email TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL,
+    password TEXT,
+    google_id TEXT,
+    avatar TEXT,
     name TEXT,
     created_at TEXT DEFAULT (datetime('now'))
   );
@@ -74,6 +76,35 @@ function token(id) {
          Buffer.from(JSON.stringify(p)).toString('base64url') + '.sig';
 }
 
+// ── Google SSO ──
+app.post('/api/auth/google', async (req, res) => {
+  const { idToken } = req.body || {};
+  if (!idToken) return res.status(400).json({ error: 'idToken required' });
+  try {
+    // Verify token with Google
+    const gRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`);
+    if (!gRes.ok) return res.status(401).json({ error: 'Invalid Google token' });
+    const profile = await gRes.json();
+
+    // Find or create user
+    let user = db.prepare('SELECT * FROM users WHERE email = ?').get(profile.email);
+    if (!user) {
+      db.prepare('INSERT INTO users (email, name, avatar, google_id) VALUES (?, ?, ?, ?)').run(
+        profile.email, profile.name || '', profile.picture || '', profile.sub
+      );
+      user = db.prepare('SELECT * FROM users WHERE email = ?').get(profile.email);
+    } else if (!user.google_id) {
+      // Link Google to existing account
+      db.prepare('UPDATE users SET google_id = ?, avatar = COALESCE(NULLIF(avatar,\"\"), ?) WHERE id = ?').run(
+        profile.sub, profile.picture || '', user.id
+      );
+    }
+    res.json({ token: token(user.id), user: { id: user.id, email: user.email, name: user.name || profile.name, avatar: profile.picture } });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── Auth Routes ──
 app.post('/api/register', (req, res) => {
   const { email, password, name } = req.body || {};
@@ -122,6 +153,10 @@ app.delete('/api/links/:code', auth, (req, res) => {
   res.json({ ok: true });
 });
 
+// ── Page Routes (MUST be before /:code) ──
+app.get('/dashboard', (req, res) => res.sendFile(path.join(__dirname, 'public', 'dashboard.html')));
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
+
 // ── Redirect ── (must be LAST route)
 app.get('/:code', (req, res) => {
   const link = db.prepare('SELECT * FROM links WHERE code = ?').get(req.params.code);
@@ -149,7 +184,4 @@ app.get('/api/check/:code', (req, res) => {
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 
 // Serve dashboard SPA
-app.get('/dashboard', (req, res) => res.sendFile(path.join(__dirname, 'public', 'dashboard.html')));
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
-
 app.listen(PORT, '127.0.0.1', () => console.log(`[shortener] http://127.0.0.1:${PORT}`));
