@@ -46,6 +46,13 @@
     .preview-divider{height:1px;background:var(--border);margin:1rem 0}
     .comp-editor{display:none;margin-top:0.5rem;padding:0.75rem;background:var(--bg);border:1px solid var(--accent);border-radius:8px}
     .comp-editor.active{display:block}
+    .theme-btn{padding:0.5rem 0.9rem;border-radius:8px;cursor:pointer;font-size:0.75rem;font-weight:500;font-family:inherit;transition:all 0.2s;min-width:70px}
+    .rte-toolbar{display:flex;gap:0.25rem;margin-bottom:0.35rem}
+    .rte-toolbar button{width:28px;height:28px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);cursor:pointer;font-size:0.7rem;font-weight:600;display:flex;align-items:center;justify-content:center;transition:all 0.15s}
+    .rte-toolbar button:hover{background:var(--accent);color:#020617;border-color:var(--accent)}
+    .rte-editor{min-height:60px;padding:0.5rem;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:0.8rem;font-family:inherit;line-height:1.6;outline:none;word-break:break-word}
+    .rte-editor:focus{border-color:var(--accent)}
+    .rte-editor a{color:var(--accent)}
     @media(max-width:768px){.main{flex-direction:column}.editor-panel{width:100%;max-height:50vh}.preview-panel{flex:1}}
   </style>
 </head>
@@ -66,6 +73,20 @@
       <h3>Settings</h3>
       <div class="field"><label>Title</label><input id="ms-title" onchange="autoSave()" /></div>
       <div class="field"><label>Description</label><input id="ms-desc" onchange="autoSave()" /></div>
+      <div class="field"><label>Avatar / Logo URL</label><input id="ms-avatar" placeholder="https://..." onchange="autoSave()" /></div>
+      <div class="field"><label>Google Analytics ID</label><input id="ms-ga" placeholder="G-XXXXXXXXXX" onchange="autoSave()" /></div>
+      <div class="field"><label>Facebook Pixel ID</label><input id="ms-pixel" placeholder="000000000000000" onchange="autoSave()" /></div>
+    </div>
+
+    <div class="panel-section">
+      <h3>Theme</h3>
+      <div style="display:flex;gap:0.4rem;flex-wrap:wrap" id="theme-picker">
+        <button class="theme-btn active" data-theme="dark" onclick="setTheme('dark')" style="background:#020617;color:#22c55e">Dark</button>
+        <button class="theme-btn" data-theme="light" onclick="setTheme('light')" style="background:#f8fafc;color:#0f172a">Light</button>
+        <button class="theme-btn" data-theme="green" onclick="setTheme('green')" style="background:#022c22;color:#22c55e">Forest</button>
+        <button class="theme-btn" data-theme="blue" onclick="setTheme('blue')" style="background:#0c1929;color:#3b82f6">Blue</button>
+        <button class="theme-btn" data-theme="minimal" onclick="setTheme('minimal')" style="background:#0a0a0a;color:#a3a3a3">Minimal</button>
+      </div>
     </div>
 
     <div class="panel-section">
@@ -73,6 +94,7 @@
       <div class="add-btns">
         <button class="add-btn" onclick="addComponent('link')">🔗 Link</button>
         <button class="add-btn" onclick="addComponent('text')">📝 Text</button>
+        <button class="add-btn" onclick="addComponent('image')">🖼️ Image</button>
         <button class="add-btn" onclick="addComponent('divider')">➖ Divider</button>
       </div>
     </div>
@@ -86,6 +108,7 @@
   <!-- Right: Live Preview -->
   <div class="preview-panel">
     <div class="preview-frame" id="preview">
+      <img id="preview-avatar" src="" alt="" style="width:72px;height:72px;border-radius:50%;object-fit:cover;margin-bottom:0.75rem;display:none" />
       <h2 id="preview-title">My Microsite</h2>
       <p class="desc" id="preview-desc"></p>
       <div id="preview-components"></div>
@@ -98,6 +121,16 @@ const slug = location.pathname.split('/').pop();
 const token = localStorage.getItem('shortener-token');
 let components = [];
 let selectedComp = -1;
+let currentTheme = 'dark';
+function safeUrl(u) { if (!u) return '#'; if (/^https?:\/\//i.test(u) || u.startsWith('/')) return u; return 'https://' + u; }
+
+const themeCSS = {
+  dark:  { bg:'#020617', surface:'#0f172a', border:'#1e293b', accent:'#22c55e', text:'#f8fafc', muted:'#94a3b8', dim:'#64748b', red:'#ef4444' },
+  light: { bg:'#f8fafc', surface:'#ffffff', border:'#e2e8f0', accent:'#16a34a', text:'#0f172a', muted:'#475569', dim:'#94a3b8', red:'#dc2626' },
+  green: { bg:'#022c22', surface:'#064e3b', border:'#065f46', accent:'#22c55e', text:'#f8fafc', muted:'#a7f3d0', dim:'#6ee7b7', red:'#f87171' },
+  blue:  { bg:'#0c1929', surface:'#1e3a5f', border:'#1e3a5f', accent:'#3b82f6', text:'#f8fafc', muted:'#93c5fd', dim:'#60a5fa', red:'#fca5a5' },
+  minimal: { bg:'#0a0a0a', surface:'#171717', border:'#404040', accent:'#a3a3a3', text:'#f5f5f5', muted:'#a3a3a3', dim:'#737373', red:'#ef4444' }
+};
 
 async function load() {
   const res = await fetch('/api/microsites', {headers:{'Authorization':'Bearer '+token}});
@@ -106,13 +139,46 @@ async function load() {
   if (!site) { alert('Microsite not found'); location.href='/dashboard'; return; }
   document.getElementById('ms-title').value = site.title || '';
   document.getElementById('ms-desc').value = site.description || '';
+  document.getElementById('ms-avatar').value = site.avatar || '';
+  document.getElementById('ms-ga').value = site.ga_id || '';
+  document.getElementById('ms-pixel').value = site.fb_pixel_id || '';
   components = site.components || [];
+  if (site.theme) setTheme(site.theme);
   renderAll();
+}
+
+function setTheme(name) {
+  currentTheme = name;
+  const t = themeCSS[name] || themeCSS.dark;
+  const root = document.documentElement;
+  root.style.setProperty('--bg', t.bg);
+  root.style.setProperty('--surface', t.surface);
+  root.style.setProperty('--border', t.border);
+  root.style.setProperty('--accent', t.accent);
+  root.style.setProperty('--text', t.text);
+  root.style.setProperty('--muted', t.muted);
+  root.style.setProperty('--dim', t.dim);
+  root.style.setProperty('--red', t.red);
+  // Update theme button active states
+  document.querySelectorAll('.theme-btn').forEach(b => {
+    const isActive = b.dataset.theme === name;
+    b.classList.toggle('active', isActive);
+    b.style.border = isActive ? '2px solid ' + t.accent : '2px solid transparent';
+  });
+  // Update live preview styling
+  const preview = document.getElementById('preview');
+  preview.style.background = t.bg;
+  preview.style.color = t.text;
+  autoSave();
 }
 
 function renderAll() {
   document.getElementById('preview-title').textContent = document.getElementById('ms-title').value || 'My Microsite';
   document.getElementById('preview-desc').textContent = document.getElementById('ms-desc').value || '';
+  const avatarUrl = document.getElementById('ms-avatar').value;
+  const avatarEl = document.getElementById('preview-avatar');
+  if (avatarUrl) { avatarEl.src = avatarUrl; avatarEl.style.display = ''; }
+  else { avatarEl.style.display = 'none'; }
   document.getElementById('comp-count').textContent = '(' + components.length + ')';
 
   // Editor list
@@ -121,7 +187,7 @@ function renderAll() {
   else {
     list.innerHTML = components.map((c,i) => `
       <div class="comp-item ${i===selectedComp?'active':''}" onclick="selectComp(${i})">
-        <span class="icon">${c.kind==='link'?'🔗':c.kind==='text'?'📝':'➖'}</span>
+        <span class="icon">${c.kind==='link'?'🔗':c.kind==='text'?'📝':c.kind==='image'?'🖼️':'➖'}</span>
         <span class="label">${c.label||c.content||'Untitled'}</span>
         <span class="actions">
           <button class="btn btn-sm btn-outline" onclick="event.stopPropagation();moveComp(${i},-1)" ${i===0?'disabled':''}>↑</button>
@@ -134,7 +200,24 @@ function renderAll() {
           <div class="field"><label>Button Text</label><input value="${c.label||''}" onchange="updateComp(${i},'label',this.value)" /></div>
           <div class="field"><label>URL</label><input value="${c.url||''}" onchange="updateComp(${i},'url',this.value)" /></div>
         `:c.kind==='text'?`
-          <div class="field"><label>Text</label><textarea rows="2" onchange="updateComp(${i},'content',this.value)">${c.content||''}</textarea></div>
+          <div class="field"><label>Text</label>
+            <div class="rte-toolbar">
+              <button onclick="event.preventDefault();rteCmd('bold')" title="Bold"><b>B</b></button>
+              <button onclick="event.preventDefault();rteCmd('italic')" title="Italic"><i>I</i></button>
+              <button onclick="event.preventDefault();rteLink(${i})" title="Link">🔗</button>
+            </div>
+            <div class="rte-editor" contenteditable="true" id="rte-${i}" oninput="rteInput(${i},this.innerHTML)">${c.content||''}</div>
+          </div>
+        `:c.kind==='image'?`
+          <div class="field"><label>Alt Text</label><input value="${c.label||''}" onchange="updateComp(${i},'label',this.value)" /></div>
+          <div class="field"><label>Image URL</label><input value="${c.url||''}" id="img-url-${i}" onchange="updateComp(${i},'url',this.value)" /></div>
+          <div style="display:flex;align-items:center;gap:0.5rem">
+            <label class="btn btn-sm btn-outline" style="cursor:pointer;margin:0">
+              📤 Upload
+              <input type="file" accept="image/*" onchange="uploadImage(${i},this)" style="display:none" />
+            </label>
+            ${c.url?`<img src="${c.url}" style="max-height:40px;border-radius:4px" />`:''}
+          </div>
         `:`<p style="font-size:0.7rem;color:var(--dim)">Visual separator</p>`}
       </div>
     `).join('');
@@ -143,8 +226,9 @@ function renderAll() {
   // Preview
   const preview = document.getElementById('preview-components');
   preview.innerHTML = components.map(c => {
-    if (c.kind === 'link') return `<a class="preview-btn" href="${c.url||'#'}" target="_blank">${c.label||'Link'}</a>`;
+    if (c.kind === 'link') return `<a class="preview-btn" href="${safeUrl(c.url)}" target="_blank">${c.label||'Link'}</a>`;
     if (c.kind === 'text') return `<div class="preview-text">${c.content||''}</div>`;
+    if (c.kind === 'image') return `<img src="${safeUrl(c.url)}" alt="${c.label||''}" style="max-width:100%;border-radius:10px;margin-bottom:0.5rem" />`;
     if (c.kind === 'divider') return '<div class="preview-divider"></div>';
     return '';
   }).join('');
@@ -163,6 +247,45 @@ function moveComp(i,dir) { const t=i+dir; if(t<0||t>=components.length)return; [
 function selectComp(i) { selectedComp = selectedComp===i ? -1 : i; renderAll(); }
 function updateComp(i,key,val) { components[i][key]=val; renderAll(); autoSave(); }
 
+async function uploadImage(i, input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  const form = new FormData();
+  form.append('file', file);
+  try {
+    document.getElementById('save-status').textContent = 'Uploading...';
+    const res = await fetch('/api/microsites/upload', {
+      method: 'POST', headers: { 'Authorization': 'Bearer ' + token }, body: form
+    });
+    const data = await res.json();
+    if (data.url) {
+      components[i].url = data.url;
+      document.getElementById('save-status').textContent = '✓ Uploaded';
+      setTimeout(() => document.getElementById('save-status').textContent = '', 1500);
+      renderAll();
+      autoSave();
+    }
+  } catch (e) {
+    document.getElementById('save-status').textContent = 'Upload failed';
+  }
+}
+
+function rteInput(i, html) { components[i].content = html; autoSave(); }
+function rteCmd(cmd) { document.execCommand(cmd, false, null); }
+function rteLink(i) {
+  const url = prompt('Link URL:');
+  if (url) {
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount && !sel.isCollapsed) {
+      document.execCommand('createLink', false, url);
+    } else {
+      document.execCommand('insertHTML', false, `<a href="${url}" target="_blank">${url}</a>`);
+    }
+  }
+  const el = document.getElementById('rte-' + i);
+  if (el) { components[i].content = el.innerHTML; autoSave(); }
+}
+
 let saveTimer;
 function autoSave() {
   clearTimeout(saveTimer);
@@ -173,6 +296,10 @@ function autoSave() {
       body: JSON.stringify({
         title: document.getElementById('ms-title').value,
         description: document.getElementById('ms-desc').value,
+        avatar: document.getElementById('ms-avatar').value,
+        ga_id: document.getElementById('ms-ga').value,
+        fb_pixel_id: document.getElementById('ms-pixel').value,
+        theme: currentTheme,
         components
       })
     });

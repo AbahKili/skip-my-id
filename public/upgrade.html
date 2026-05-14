@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Upgrade to Skip Pro — Skip My ID</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet" />
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{--bg:#020617;--surface:#0f172a;--border:#1e293b;--accent:#22c55e;--text:#f8fafc;--muted:#94a3b8;--dim:#64748b;--red:#ef4444;--yellow:#eab308}
+    body{font-family:'Plus Jakarta Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:2rem 1rem}
+    h1,h2{font-family:'Space Grotesk',sans-serif}
+    a{color:var(--accent);text-decoration:none}
+    .container{max-width:420px;width:100%}
+    .logo{font-family:'Space Grotesk',sans-serif;font-size:1rem;font-weight:700;margin-bottom:2rem;text-align:center}
+    .logo span{color:var(--accent)}
+    h1{font-size:1.5rem;text-align:center;margin-bottom:0.3rem}
+    .sub{color:var(--muted);font-size:0.85rem;text-align:center;margin-bottom:1.5rem}
+    .plans{display:flex;flex-direction:column;gap:0.6rem;margin-bottom:1.5rem}
+    .plan-card{background:var(--surface);border:2px solid var(--border);border-radius:12px;padding:1rem;cursor:pointer;transition:border-color 0.2s;display:flex;justify-content:space-between;align-items:center}
+    .plan-card:hover{border-color:var(--accent)}
+    .plan-card.selected{border-color:var(--accent);background:rgba(34,197,94,0.05)}
+    .plan-name{font-weight:600;font-size:0.9rem}
+    .plan-desc{font-size:0.7rem;color:var(--muted);margin-top:0.15rem}
+    .plan-price{font-weight:700;font-size:1.1rem;color:var(--accent);text-align:right}
+    .plan-price small{font-size:0.65rem;color:var(--muted);font-weight:400}
+    .qr-section{display:none;text-align:center;margin-top:1rem}
+    .qr-section.show{display:block}
+    .qr-img{max-width:280px;border-radius:12px;border:2px solid var(--border)}
+    .qr-amount{font-weight:700;font-size:1.2rem;color:var(--accent);margin:0.5rem 0}
+    .qr-hint{font-size:0.75rem;color:var(--muted);margin-bottom:0.75rem}
+    .qr-timer{font-size:0.7rem;color:var(--yellow)}
+    .success-box{display:none;text-align:center;padding:2rem;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:12px;margin-top:1rem}
+    .success-box.show{display:block}
+    .success-box h2{color:var(--accent);font-size:1.2rem;margin-bottom:0.3rem}
+    .btn{display:inline-block;background:var(--accent);color:#020617;font-weight:600;border:none;border-radius:8px;padding:0.7rem 1.4rem;font-size:0.85rem;cursor:pointer;font-family:inherit;transition:background 0.2s;width:100%}
+    .btn:hover{background:#16a34a}
+    .btn:disabled{opacity:0.5;cursor:not-allowed}
+    .btn-outline{background:transparent;border:1px solid var(--border);color:var(--text)}
+    .btn-outline:hover{background:rgba(255,255,255,0.03)}
+    .error{color:var(--red);font-size:0.75rem;text-align:center;margin-top:0.5rem}
+    .back-link{display:block;text-align:center;margin-top:1.5rem;font-size:0.8rem}
+    .features{font-size:0.75rem;color:var(--muted);text-align:center;margin-top:1.5rem;line-height:1.8}
+    .features span{color:var(--accent)}
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="logo">Skip<span>My</span>ID <span style="color:var(--yellow)">Pro</span></div>
+  <h1>Upgrade to Skip Pro</h1>
+  <p class="sub">Pay with QRIS — scan with any banking app</p>
+
+  <div id="plan-view">
+    <div class="plans">
+      <div class="plan-card" data-plan="monthly" onclick="selectPlan('monthly')">
+        <div>
+          <div class="plan-name">Monthly</div>
+          <div class="plan-desc">Full access, billed monthly</div>
+        </div>
+        <div class="plan-price">Rp 35K<small>/mo</small></div>
+      </div>
+      <div class="plan-card" data-plan="annual" onclick="selectPlan('annual')">
+        <div>
+          <div class="plan-name">Annual</div>
+          <div class="plan-desc">2 months free — best value</div>
+        </div>
+        <div class="plan-price">Rp 350K<small>/yr</small></div>
+      </div>
+      <div class="plan-card" data-plan="lifetime" onclick="selectPlan('lifetime')">
+        <div>
+          <div class="plan-name">Lifetime</div>
+          <div class="plan-desc">Pay once, forever</div>
+        </div>
+        <div class="plan-price">Rp 1.5M<small> once</small></div>
+      </div>
+    </div>
+    <button class="btn" id="pay-btn" disabled onclick="generateQR()">Generate QR Code</button>
+    <p class="error" id="plan-error"></p>
+  </div>
+
+  <div class="qr-section" id="qr-view">
+    <img class="qr-img" id="qr-img" src="" alt="QRIS Code" />
+    <div class="qr-amount" id="qr-amount"></div>
+    <p class="qr-hint">Scan this QR with GoPay, OVO, BCA Mobile, or any banking app</p>
+    <p class="qr-timer" id="qr-timer"></p>
+    <button class="btn btn-outline" onclick="resetView()" style="margin-top:0.5rem">Cancel</button>
+  </div>
+
+  <div class="success-box" id="success-view">
+    <h2>Payment Received!</h2>
+    <p style="color:var(--muted);font-size:0.85rem">Your Skip Pro access is now active.</p>
+    <a href="/dashboard" class="btn" style="margin-top:1rem">Go to Dashboard</a>
+  </div>
+
+  <div class="features">
+    <span>&#10003;</span> Short slugs (≤4 chars) &nbsp; <span>&#10003;</span> No ads<br>
+    <span>&#10003;</span> Remove branding &nbsp; <span>&#10003;</span> All 5 themes<br>
+    <span>&#10003;</span> QR codes &nbsp; <span>&#10003;</span> GA & Pixel<br>
+    <span>&#10003;</span> Permanent links, never expire
+  </div>
+
+  <a href="/dashboard" class="back-link">&larr; Back to Dashboard</a>
+</div>
+
+<script>
+const token = localStorage.getItem('shortener-token');
+if (!token) location.href = '/dashboard';
+
+let selectedPlan = '';
+let pollTimer = null;
+let qrTimer = null;
+let historyId = null;
+const plans = { monthly: 35000, annual: 350000, lifetime: 1499000 };
+const planLabels = { monthly: 'Monthly', annual: 'Annual', lifetime: 'Lifetime' };
+
+function selectPlan(plan) {
+  selectedPlan = plan;
+  document.querySelectorAll('.plan-card').forEach(c => c.classList.toggle('selected', c.dataset.plan === plan));
+  document.getElementById('pay-btn').disabled = false;
+}
+
+async function generateQR() {
+  if (!selectedPlan) return;
+  document.getElementById('plan-error').textContent = '';
+  document.getElementById('pay-btn').disabled = true;
+  document.getElementById('pay-btn').textContent = 'Generating...';
+  try {
+    const res = await fetch('/api/qris/generate', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ plan: selectedPlan })
+    });
+    const d = await res.json();
+    if (d.success) {
+      historyId = d.history_id;
+      document.getElementById('qr-img').src = d.qris_string;
+      document.getElementById('qr-amount').textContent = 'Rp ' + d.final_amount.toLocaleString('id-ID');
+      document.getElementById('plan-view').style.display = 'none';
+      document.getElementById('qr-view').classList.add('show');
+      startPolling();
+      startQRTimer();
+    } else {
+      document.getElementById('plan-error').textContent = d.error || d.message || 'Failed to generate QR';
+    }
+  } catch(e) {
+    document.getElementById('plan-error').textContent = 'Network error';
+  }
+  document.getElementById('pay-btn').disabled = !selectedPlan;
+  document.getElementById('pay-btn').textContent = 'Generate QR Code';
+}
+
+function startPolling() {
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(async () => {
+    try {
+      const res = await fetch('/api/qris/status/' + historyId, {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      const d = await res.json();
+      if (d.success && d.payment_status === 'paid') {
+        clearInterval(pollTimer);
+        clearInterval(qrTimer);
+        document.getElementById('qr-view').classList.remove('show');
+        document.getElementById('success-view').classList.add('show');
+      } else if (d.payment_status === 'expired') {
+        clearInterval(pollTimer);
+        clearInterval(qrTimer);
+        document.getElementById('plan-error').textContent = 'QR code expired. Please try again.';
+        resetView();
+      }
+    } catch(e) {}
+  }, 3000);
+}
+
+function startQRTimer() {
+  let sec = 900; // 15 minutes
+  const el = document.getElementById('qr-timer');
+  if (qrTimer) clearInterval(qrTimer);
+  qrTimer = setInterval(() => {
+    sec--;
+    if (sec <= 0) { clearInterval(qrTimer); el.textContent = 'Expired'; return; }
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    el.textContent = `Expires in ${m}:${s.toString().padStart(2,'0')}`;
+  }, 1000);
+}
+
+function resetView() {
+  clearInterval(pollTimer);
+  clearInterval(qrTimer);
+  document.getElementById('plan-view').style.display = '';
+  document.getElementById('qr-view').classList.remove('show');
+  document.getElementById('success-view').classList.remove('show');
+  document.getElementById('pay-btn').disabled = !selectedPlan;
+  document.getElementById('plan-error').textContent = '';
+}
+</script>
+</body>
+</html>

@@ -109,6 +109,9 @@
         <input id="quick-output" readonly onclick="this.select();navigator.clipboard.writeText(this.value);document.getElementById('copied-msg').textContent='Copied!'" />
         <span class="copied" id="copied-msg"></span>
       </div>
+      <div class="expiry-note" id="expiry-note" style="display:none;margin-top:0.75rem;padding:0.6rem 0.8rem;background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.2);border-radius:8px;font-size:0.75rem">
+        <span style="color:#eab308">⏳</span> This link expires in <strong>30 days</strong>. <a href="/dashboard" style="color:var(--accent);font-weight:600">Sign up</a> to keep it forever &amp; manage it from your dashboard.
+      </div>
       <div style="margin-top:0.5rem;text-align:center">
         <button id="custom-toggle" class="btn" style="background:transparent;border:1px solid var(--border);color:var(--muted);font-size:0.75rem;padding:0.35rem 0.8rem" onclick="toggleCustom()">+ Custom name</button>
       </div>
@@ -177,6 +180,16 @@ async function quickShorten() {
     if (d.ok) {
       document.getElementById('quick-output').value = d.link.shortURL;
       document.getElementById('quick-result').classList.add('show');
+      // Show expiry note for anonymous links
+      if (d.link.expiresAt) {
+        document.getElementById('expiry-note').style.display = '';
+        // Store for claiming after signup
+        const claimed = JSON.parse(localStorage.getItem('skm-anon-links') || '[]');
+        if (!claimed.includes(d.link.code)) { claimed.push(d.link.code); }
+        localStorage.setItem('skm-anon-links', JSON.stringify(claimed));
+      } else {
+        document.getElementById('expiry-note').style.display = 'none';
+      }
     } else { errEl.textContent = d.error || 'Failed'; errEl.classList.add('show'); }
   } catch(e) { errEl.textContent = 'Network error'; errEl.classList.add('show'); }
   btn.disabled = false; btn.textContent = 'Shorten';

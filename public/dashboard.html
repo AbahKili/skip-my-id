@@ -51,6 +51,8 @@
     .link-short:hover{color:var(--accent-hover)}
     .link-target{color:var(--muted);font-size:0.7rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:300px}
     .link-clicks{color:var(--dim);font-size:0.7rem;white-space:nowrap;min-width:50px;text-align:right}
+    .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100;display:flex;align-items:center;justify-content:center}
+    .modal-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.5rem;max-width:300px;width:90%}
     .link-actions{display:flex;gap:0.3rem;flex-shrink:0}
 
     .link-edit{margin-top:0.5rem;display:none}
@@ -80,6 +82,8 @@
   <a href="/" class="logo">Skip<span>My</span>ID</a>
   <div class="nav-right">
     <span id="user-name" style="color:var(--muted);font-size:0.78rem;"></span>
+    <a id="upgrade-btn" href="https://nerdstudio.lemonsqueezy.com/checkout/buy/3906e017-7bde-4009-a934-c8e286ef1252" class="btn btn-sm" style="background:#eab308;color:#020617;text-decoration:none;margin-right:0.3rem;font-weight:600">Upgrade (Global)</a>
+    <a href="/upgrade" class="btn btn-sm" style="background:var(--surface);color:var(--accent);text-decoration:none;border:1px solid var(--accent);font-weight:600">QRIS (ID)</a>
     <button class="btn btn-outline btn-sm" onclick="logout()">Logout</button>
   </div>
 </div>
@@ -139,6 +143,14 @@
     <div class="card" id="microsites-list">
       <h2>Your Microsites</h2>
       <div class="empty-state">Loading...</div>
+    </div>
+  </div>
+  <div class="modal-overlay" id="qr-modal" style="display:none" onclick="this.style.display='none'">
+    <div class="modal-box" onclick="event.stopPropagation()">
+      <h3 style="margin-bottom:0.5rem">QR Code</h3>
+      <img id="qr-img" src="" alt="QR Code" style="width:220px;height:220px;display:block;margin:0 auto" />
+      <p style="font-size:0.7rem;color:var(--muted);text-align:center;margin-top:0.4rem" id="qr-url"></p>
+      <button class="btn btn-sm" onclick="downloadQR()" style="display:block;margin:0.5rem auto 0">Download PNG</button>
     </div>
   </div>
 </div>
@@ -230,10 +242,11 @@ async function loadLinks() {
           <button class="btn btn-sm btn-outline" onclick="cancelEdit('${l.code}')">Cancel</button>
         </div>
       </div>
-      <div class="link-clicks">${l.clicks || 0} clicks</div>
+      <div class="link-clicks">${l.clicks || 0} clicks${l.expires_at ? `<br><span style="color:#eab308;font-size:0.65rem">Expires ${new Date(l.expires_at).toLocaleDateString()}</span>` : ''}</div>
       <div class="link-actions">
         <button class="btn btn-sm btn-outline" onclick="editLink('${l.code}')">Edit</button>
         <button class="btn btn-sm btn-outline" onclick="copyLink('${l.shortURL}')">Copy</button>
+        <button class="btn btn-sm btn-outline" onclick="showQR('${l.code}')">QR</button>
         <button class="btn btn-sm btn-danger" onclick="deleteLink('${l.code}')">Del</button>
       </div>
     </div>
@@ -254,6 +267,20 @@ async function saveEdit(code) {
 }
 
 function copyLink(url) { navigator.clipboard?.writeText(url); }
+let currentQR = '';
+function showQR(code) {
+  currentQR = code;
+  document.getElementById('qr-img').src = API + '/qr/' + code;
+  document.getElementById('qr-url').textContent = 'skip.my.id/' + code;
+  document.getElementById('qr-modal').style.display = 'flex';
+}
+function downloadQR() {
+  if (!currentQR) return;
+  const a = document.createElement('a');
+  a.href = API + '/qr/' + currentQR;
+  a.download = currentQR + '-qr.png';
+  a.click();
+}
 
 async function deleteLink(code) { if (!confirm('Delete this link?')) return; try { const res = await fetch(API + '/links/' + code, { method:'DELETE', headers:{'Authorization':'Bearer '+token} }); if (!res.ok) { const d = await res.json(); alert(d.error || 'Failed to delete'); return; } loadLinks(); } catch(e) { alert('Network error: ' + e.message); } }
 
@@ -297,21 +324,41 @@ async function deleteMicrosite(slug) {
   loadMicrosites();
 }
 
+async function autoClaim() {
+  const raw = localStorage.getItem('skm-anon-links');
+  if (!raw) return;
+  const codes = JSON.parse(raw);
+  if (!codes.length) return;
+  try {
+    const res = await fetch(API + '/links/claim', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ codes })
+    });
+    const d = await res.json();
+    if (d.claimed > 0) localStorage.setItem('skm-anon-links', '[]');
+  } catch {}
+}
+
 function showDashboard(user) {
   document.getElementById('auth-view').style.display = 'none';
   document.getElementById('dash-view').style.display = '';
   document.getElementById('user-name').textContent = user.email || '';
+  // Inject email into upgrade link for webhook matching
+  const upgradeBtn = document.getElementById('upgrade-btn');
+  if (upgradeBtn && user.email) {
+    upgradeBtn.href = `https://nerdstudio.lemonsqueezy.com/checkout/buy/3906e017-7bde-4009-a934-c8e286ef1252?checkout[email]=${encodeURIComponent(user.email)}`;
+  }
   // Show microsites section on staging only
   if (location.hostname.startsWith('staging.')) {
     document.getElementById('microsites-section').style.display = '';
     loadMicrosites();
   }
-  loadLinks();
+  autoClaim().then(() => loadLinks());
 }
 
 if (token) {
   fetch(API + '/links', { headers: { 'Authorization': 'Bearer ' + token } }).then(r => {
-    if (r.ok) { document.getElementById('auth-view').style.display = 'none'; document.getElementById('dash-view').style.display = ''; loadLinks(); }
+    if (r.ok) { document.getElementById('auth-view').style.display = 'none'; document.getElementById('dash-view').style.display = ''; autoClaim().then(() => loadLinks()); if (location.hostname.startsWith('staging.')) { document.getElementById('microsites-section').style.display = ''; loadMicrosites(); } }
     else { localStorage.removeItem('shortener-token'); token = null; }
   });
 }

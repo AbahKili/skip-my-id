@@ -3,3 +3,8 @@ data.db
 data.db-shm
 data.db-wal
 data-staging.db
+data-staging.db-shm
+data-staging.db-wal
+start.sh
+start-staging.sh
+public/uploads/
