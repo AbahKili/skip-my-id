@@ -15,15 +15,23 @@ const DB_PATH = path.join(__dirname, 'data.db');
 const ADSENSE_PUB_ID = process.env.ADSENSE_PUB_ID || '';
 const LEMON_SQUEEZY_SECRET = process.env.LEMON_SQUEEZY_SECRET || '';
 const LS_STORE = process.env.LS_STORE || 'skipmyid'; // Lemon Squeezy store slug
-const QRISLY_API_KEY = process.env.QRISLY_API_KEY || '';
-const QRISLY_BASE_URL = process.env.QRISLY_BASE_URL || 'https://api-sandbox.collaborator.komerce.id/user';
-const QRISLY_QRIS_ID = process.env.QRISLY_QRIS_ID || ''; // set after one-time upload
+const XENDIT_API_KEY = process.env.XENDIT_API_KEY || '';
+const XENDIT_CALLBACK_TOKEN = process.env.XENDIT_CALLBACK_TOKEN || '';
+const IDP_URL = process.env.IDP_URL || 'https://id.nerdstudio.online';
+const IDP_INTERNAL_KEY = process.env.IDP_INTERNAL_KEY || 'internal';
+const FREE_MAX_LINKS = 20;
 
-// ── QRISLY helpers ──
-async function qrislyRequest(method, path, body) {
-  const opts = { method, headers: { 'X-API-Key': QRISLY_API_KEY } };
-  if (body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
-  const res = await fetch(QRISLY_BASE_URL + path, opts);
+// ── Xendit helpers ──
+async function xenditRequest(method, path, body) {
+  const opts = {
+    method,
+    headers: {
+      'Authorization': 'Basic ' + Buffer.from(XENDIT_API_KEY + ':').toString('base64'),
+      'Content-Type': 'application/json'
+    }
+  };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch('https://api.xendit.co' + path, opts);
   return res.json();
 }
 
@@ -100,7 +108,7 @@ for (const col of [
   'ALTER TABLE microsites ADD COLUMN fb_pixel_id TEXT DEFAULT ""'
 ]) { try { db.exec(col); } catch {} }
 db.exec(`CREATE TABLE IF NOT EXISTS qris_pending (
-  history_id INTEGER PRIMARY KEY,
+  history_id TEXT PRIMARY KEY,
   user_id INTEGER,
   plan TEXT,
   amount INTEGER,
@@ -110,8 +118,8 @@ db.exec(`CREATE TABLE IF NOT EXISTS qris_pending (
 
 // Clean up expired anonymous links hourly
 setInterval(() => {
-  db.prepare('DELETE FROM clicks WHERE link_id IN (SELECT id FROM links WHERE expires_at < datetime("now"))').run();
-  db.prepare('DELETE FROM links WHERE expires_at < datetime("now")').run();
+  db.prepare(`DELETE FROM clicks WHERE link_id IN (SELECT id FROM links WHERE expires_at < datetime('now'))`).run();
+  db.prepare(`DELETE FROM links WHERE expires_at < datetime('now')`).run();
 }, 3600_000);
 
 // ── Middleware ──
@@ -147,12 +155,51 @@ function token(id) {
   return Buffer.from(JSON.stringify(h)).toString('base64url') + '.' +
          Buffer.from(JSON.stringify(p)).toString('base64url') + '.sig';
 }
+async function checkIdpMembership(email) {
+  if (!email) return false;
+  try {
+    const resp = await fetch(
+      `${IDP_URL}/api/membership/check?email=${encodeURIComponent(email)}&key=${encodeURIComponent(IDP_INTERNAL_KEY)}`
+    );
+    if (!resp.ok) return false;
+    const data = await resp.json();
+    if (data.membership === 'premium' && data.membership_expires_at) {
+      return new Date(data.membership_expires_at) > new Date();
+    }
+    return false;
+  } catch { return false; }
+}
+
 function isPremium(uid) {
   if (!uid) return false;
-  const u = db.prepare('SELECT premium, premium_expires FROM users WHERE id = ?').get(uid);
-  if (!u || !u.premium) return false;
-  if (u.premium_expires && new Date(u.premium_expires) < new Date()) return false;
-  return true;
+  const u = db.prepare('SELECT premium, premium_expires, email FROM users WHERE id = ?').get(uid);
+  if (!u) return false;
+  // Check local premium first
+  if (u.premium) {
+    if (u.premium_expires && new Date(u.premium_expires) < new Date()) {
+      // Local premium expired — fall through to IDP check
+    } else {
+      return true;
+    }
+  }
+  // Sync check: we'll return false here and let async checkIdpMembership be used where needed
+  return false;
+}
+
+// Async version for routes that can use await
+async function isPremiumAsync(uid) {
+  if (!uid) return false;
+  const u = db.prepare('SELECT premium, premium_expires, email FROM users WHERE id = ?').get(uid);
+  if (!u) return false;
+  if (u.premium) {
+    if (u.premium_expires && new Date(u.premium_expires) < new Date()) {
+      // expired — check IDP
+      return await checkIdpMembership(u.email);
+    }
+    return true;
+  }
+  // Check IDP membership
+  return await checkIdpMembership(u.email);
 }
 function safeUrl(u) {
   if (!u) return '#';
@@ -213,14 +260,35 @@ app.post('/api/login', (req, res) => {
   res.json({ token: token(user.id), user: { id: user.id, email: user.email, name: user.name } });
 });
 
+app.get('/api/me', auth, async (req, res) => {
+  const user = db.prepare('SELECT id, email, name, premium, premium_expires FROM users WHERE id = ?').get(req.userId);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  const plan = await isPremiumAsync(req.userId) ? 'premium' : 'free';
+  const linkCount = db.prepare('SELECT COUNT(*) as cnt FROM links WHERE user_id = ?').get(req.userId);
+  res.json({
+    id: user.id, email: user.email, name: user.name,
+    plan,
+    linksUsed: linkCount.cnt,
+    linksMax: plan === 'premium' ? null : FREE_MAX_LINKS,
+  });
+});
+
 // ── Link Routes ──
-app.post('/api/links', optionalAuth, (req, res) => {
+app.post('/api/links', optionalAuth, async (req, res) => {
   const { url, code, title } = req.body || {};
   const userId = req.userId || null;
   if (!url) return res.status(400).json({ error: 'URL required' });
   // Auto-prepend https:// if no protocol specified
   let finalURL = url.trim();
   if (!/^https?:\/\//i.test(finalURL)) finalURL = 'https://' + finalURL;
+
+  // Premium gate: free users limited to FREE_MAX_LINKS
+  if (userId && !(await isPremiumAsync(userId))) {
+    const count = db.prepare('SELECT COUNT(*) as cnt FROM links WHERE user_id = ?').get(userId);
+    if (count.cnt >= FREE_MAX_LINKS) {
+      return res.status(402).json({ error: `Free plan limited to ${FREE_MAX_LINKS} links. Upgrade at nerdstudio.online/upgrade`, upgradeUrl: 'https://nerdstudio.online/upgrade' });
+    }
+  }
   const slug = (code || crypto.randomBytes(4).toString('base64url')).slice(0, 20);
   // Check against microsites too
   if (db.prepare('SELECT 1 FROM microsites WHERE slug = ?').get(slug)) {
@@ -307,81 +375,61 @@ app.delete('/api/links/:code', auth, (req, res) => {
   res.json({ ok: true });
 });
 
-// ── QRISLY Payment Routes ──
-// One-time: upload QRIS image to get qris_id (admin only)
-app.post('/api/qris/upload', auth, upload.single('qris_image'), async (req, res) => {
-  if (!QRISLY_API_KEY) return res.status(500).json({ error: 'QRISLY not configured' });
-  if (!req.file) return res.status(400).json({ error: 'QRIS image required' });
-  try {
-    const FormData = require('form-data');
-    const fd = new FormData();
-    fd.append('name', req.body.name || 'Skip My ID');
-    fd.append('qris_image', require('fs').createReadStream(req.file.path));
-    const r = await fetch(QRISLY_BASE_URL + '/api/v1/qrisly/upload-qris', {
-      method: 'POST', headers: { 'X-API-Key': QRISLY_API_KEY, ...fd.getHeaders() }, body: fd
-    });
-    const d = await r.json();
-    if (d.success) {
-      console.log('[qrisly] Upload success. qris_id:', d.qris_id, '— set QRISLY_QRIS_ID env var');
-    }
-    res.json(d);
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// Generate dynamic QRIS for checkout
-app.post('/api/qris/generate', auth, async (req, res) => {
-  if (!QRISLY_API_KEY || !QRISLY_QRIS_ID) return res.status(500).json({ error: 'QRISLY not configured' });
+// ── Xendit Payment Routes ──
+// Create invoice for premium upgrade
+app.post('/api/xendit/invoice', auth, async (req, res) => {
+  if (!XENDIT_API_KEY) return res.status(500).json({ error: 'Payment not configured' });
   const plans = { monthly: 35000, annual: 350000, lifetime: 1499000 };
   const plan = req.body?.plan;
   const amount = plans[plan];
   if (!amount) return res.status(400).json({ error: 'Invalid plan. Use: monthly, annual, lifetime' });
+
+  const user = db.prepare('SELECT email FROM users WHERE id = ?').get(req.userId);
+  const extId = `skip-pro-${req.userId}-${Date.now()}`;
+
   try {
-    const d = await qrislyRequest('POST', '/api/v1/qrisly/generate-qris', {
-      qris_id: QRISLY_QRIS_ID, amount, output_type: 'image', unique_amount: true
+    const d = await xenditRequest('POST', '/v2/invoices', {
+      external_id: extId,
+      amount,
+      payer_email: user?.email || '',
+      description: `Skip Pro - ${plan}`,
+      currency: 'IDR',
+      success_redirect_url: 'https://skip.my.id/dashboard',
+      failure_redirect_url: 'https://skip.my.id/upgrade'
     });
-    if (d.success) {
-      // Store pending payment for webhook lookup
-      db.prepare('INSERT OR REPLACE INTO qris_pending (history_id, user_id, plan, amount, created_at) VALUES (?,?,?,?,datetime("now"))').run(
-        d.history_id, req.userId, plan, amount
+    if (d.id) {
+      db.prepare(`INSERT OR REPLACE INTO qris_pending (history_id, user_id, plan, amount, created_at) VALUES (?,?,?,?,datetime('now'))`).run(
+        d.id, req.userId, plan, amount
       );
     }
-    res.json(d);
+    res.json({ ok: true, invoice_url: d.invoice_url, id: d.id, amount });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// Check payment status (polling fallback)
-app.get('/api/qris/status/:historyId', auth, async (req, res) => {
-  if (!QRISLY_API_KEY) return res.status(500).json({ error: 'QRISLY not configured' });
-  try {
-    const d = await qrislyRequest('GET', '/api/v1/qrisly/payment-status/' + req.params.historyId);
-    if (d.success && d.payment_status === 'paid') {
-      activatePremium(d.history_id);
-    }
-    res.json(d);
-  } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-// QRISLY webhook receiver
-app.post('/webhook/qrisly', (req, res) => {
-  res.json({ success: true, message: 'Webhook received' });
-  const { event, data } = req.body || {};
-  console.log('[qrisly] Webhook:', event, data?.history_id, data?.status);
-  if (event === 'payment.success' && data?.history_id) {
-    activatePremium(data.history_id);
+// Xendit webhook receiver
+app.post('/webhook/xendit', (req, res) => {
+  res.json({ ok: true });
+  const cbToken = req.get('x-callback-token');
+  console.log('[xendit] webhook received. token:', cbToken?.slice(0,10) + '...', 'status:', req.body?.status);
+  // TODO: re-enable after getting sandbox callback token from Xendit dashboard
+  const event = req.body;
+  console.log('[xendit] Webhook:', event?.id, event?.status);
+  if (event?.status === 'PAID') {
+    activatePremium(event.id);
   }
 });
 
-function activatePremium(historyId) {
-  const pending = db.prepare('SELECT * FROM qris_pending WHERE history_id = ?').get(historyId);
+function activatePremium(xenditId) {
+  const pending = db.prepare('SELECT * FROM qris_pending WHERE history_id = ?').get(xenditId);
   if (!pending) return;
   const plan = pending.plan;
   const isAnnual = plan === 'annual';
   const isLifetime = plan === 'lifetime';
   const expiresAt = isLifetime ? null : new Date(Date.now() + (isAnnual ? 366 : 31) * 24 * 3600 * 1000).toISOString();
   db.prepare('UPDATE users SET premium = 1, premium_expires = ? WHERE id = ?').run(expiresAt, pending.user_id);
-  db.prepare('DELETE FROM qris_pending WHERE history_id = ?').run(historyId);
+  db.prepare('DELETE FROM qris_pending WHERE history_id = ?').run(xenditId);
   const user = db.prepare('SELECT email FROM users WHERE id = ?').get(pending.user_id);
-  console.log(`[qrisly] Premium activated: ${user?.email} — ${plan}`);
+  console.log(`[xendit] Premium activated: ${user?.email} — ${plan}`);
 }
 
 // ── Page Routes (MUST be before /:code) ──
@@ -528,7 +576,11 @@ app.post('/api/microsites/upload', auth, upload.single('file'), (req, res) => {
   res.json({ url: '/uploads/' + req.file.filename });
 });
 
-app.post('/api/microsites', auth, (req, res) => {
+app.post('/api/microsites', auth, async (req, res) => {
+  // Microsites are premium-only
+  if (!(await isPremiumAsync(req.userId))) {
+    return res.status(402).json({ error: 'Microsites are a premium feature. Upgrade at nerdstudio.online/upgrade', upgradeUrl: 'https://nerdstudio.online/upgrade' });
+  }
   const { title, slug, description, components } = req.body || {};
   if (!title) return res.status(400).json({ error: 'Title required' });
   const finalSlug = (slug || title.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 30));
