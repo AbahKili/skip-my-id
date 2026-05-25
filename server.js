@@ -526,7 +526,7 @@ app.get('/:code', (req, res) => {
 </html>`);
   }
   // Default: redirect
-  res.redirect(301, link.url);
+  res.redirect(302, link.url);
 });
 
 // QR Code for any link/microsite
