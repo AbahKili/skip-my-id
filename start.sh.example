@@ -1,0 +1,8 @@
+#!/bin/bash
+cd /opt/shortener
+export PORT=REDACTED
+export ADSENSE_PUB_ID=REDACTED
+export LEMON_SQUEEZY_SECRET=REDACTED
+export XENDIT_API_KEY=REDACTED
+export XENDIT_CALLBACK_TOKEN=REDACTED
+exec node server.js
