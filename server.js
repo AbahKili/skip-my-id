@@ -241,24 +241,7 @@ app.post('/api/auth/google', async (req, res) => {
 });
 
 // ── Auth Routes ──
-app.post('/api/register', (req, res) => {
-  const { email, password, name } = req.body || {};
-  if (!email || !password) return res.status(400).json({ error: 'Email and password required' });
-  try {
-    db.prepare('INSERT INTO users (email, password, name) VALUES (?, ?, ?)').run(email, hash(password), name || '');
-    res.json({ ok: true, message: 'Account created. Please login.' });
-  } catch (err) {
-    if (err.message.includes('UNIQUE')) return res.status(409).json({ error: 'Email already registered' });
-    res.status(500).json({ error: err.message });
-  }
-});
-
-app.post('/api/login', (req, res) => {
-  const { email, password } = req.body || {};
-  const user = db.prepare('SELECT * FROM users WHERE email = ? AND password = ?').get(email, hash(password));
-  if (!user) return res.status(401).json({ error: 'Invalid email or password' });
-  res.json({ token: token(user.id), user: { id: user.id, email: user.email, name: user.name } });
-});
+// ── Google SSO only (email/password removed) ──
 
 app.get('/api/me', auth, async (req, res) => {
   const user = db.prepare('SELECT id, email, name, premium, premium_expires FROM users WHERE id = ?').get(req.userId);

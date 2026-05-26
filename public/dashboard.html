@@ -91,26 +91,11 @@
 
 <!-- Auth -->
 <div class="container" id="auth-view">
-  <div class="auth-box card">
-    <div class="tabs">
-      <div class="tab active" onclick="switchTab(event,'login')">Sign In</div>
-      <div class="tab" onclick="switchTab(event,'register')">Register</div>
-    </div>
-    <div id="login-form">
-      <div class="field"><label>Email</label><input id="login-email" type="email" placeholder="you@email.com" /></div>
-      <div class="field"><label>Password</label><input id="login-pw" type="password" /></div>
-      <button class="btn" onclick="login()" style="width:100%">Sign In</button>
-      <div class="divider">or</div>
-      <div id="g_id_signin" style="display:flex;justify-content:center;"></div>
-      <div class="error" id="login-error"></div>
-    </div>
-    <div id="register-form" style="display:none">
-      <div class="field"><label>Name</label><input id="reg-name" type="text" placeholder="Your name" /></div>
-      <div class="field"><label>Email</label><input id="reg-email" type="email" placeholder="you@email.com" /></div>
-      <div class="field"><label>Password</label><input id="reg-pw" type="password" placeholder="Min 6 characters" /></div>
-      <button class="btn" onclick="register()" style="width:100%">Create Account</button>
-      <div class="error" id="reg-error"></div>
-    </div>
+  <div class="auth-box card" style="text-align:center;padding:60px 20px">
+    <h2 style="margin-bottom:8px">Sign in to skip.my.id</h2>
+    <p style="color:var(--muted);margin-bottom:24px">Create short links, microsites, and QR codes.</p>
+    <div id="g_id_signin" style="display:flex;justify-content:center;"></div>
+    <div class="error" id="login-error"></div>
   </div>
 </div>
 
@@ -179,40 +164,7 @@ window.onload = () => {
   }
 };
 
-async function login() {
-  showError('login-error','');
-  const email = document.getElementById('login-email').value.trim();
-  const pw = document.getElementById('login-pw').value;
-  try {
-    const res = await fetch(API + '/login', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email, password}) });
-    const d = await res.json();
-    if (d.token) { token = d.token; localStorage.setItem('shortener-token', token); showDashboard(d.user); }
-    else showError('login-error', d.error);
-  } catch(e) { showError('login-error', 'Network error'); }
-}
-
-async function register() {
-  showError('reg-error','');
-  const email = document.getElementById('reg-email').value.trim();
-  const pw = document.getElementById('reg-pw').value;
-  const name = document.getElementById('reg-name').value.trim();
-  if (pw.length < 6) { showError('reg-error','Password must be at least 6 characters'); return; }
-  try {
-    const res = await fetch(API + '/register', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email, password: pw, name}) });
-    const d = await res.json();
-    if (d.ok) { switchTab({target: document.querySelector('.tab:first-child')}, 'login'); showError('login-error', 'Account created! Please sign in.'); }
-    else showError('reg-error', d.error);
-  } catch(e) { showError('reg-error', 'Network error'); }
-}
-
 function logout() { localStorage.removeItem('shortener-token'); token = null; location.reload(); }
-
-function switchTab(e, t) {
-  document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
-  e.target.classList.add('active');
-  document.getElementById('login-form').style.display = t === 'login' ? '' : 'none';
-  document.getElementById('register-form').style.display = t === 'register' ? '' : 'none';
-}
 
 async function createLink() {
   showError('create-error','');
