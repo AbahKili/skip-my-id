@@ -20,6 +20,7 @@ const XENDIT_CALLBACK_TOKEN = process.env.XENDIT_CALLBACK_TOKEN || '';
 const IDP_URL = process.env.IDP_URL || 'https://id.nerdstudio.online';
 const IDP_INTERNAL_KEY = process.env.IDP_INTERNAL_KEY || 'internal';
 const FREE_MAX_LINKS = 20;
+const FREE_MAX_MICROSITES = 4;
 
 // ── Xendit helpers ──
 async function xenditRequest(method, path, body) {
@@ -208,7 +209,7 @@ function safeUrl(u) {
 }
 function requirePremium(req, res, next) {
   if (isPremium(req.userId)) return next();
-  res.status(402).json({ error: 'Short codes (≤4 characters) are for premium members only. Upgrade at nerdstudio.online' });
+  res.status(402).json({ error: 'Short codes (≤5 characters) are for premium members only. Upgrade at nerdstudio.online' });
 }
 
 // ── Google SSO ──
@@ -278,11 +279,11 @@ app.post('/api/links', optionalAuth, async (req, res) => {
     return res.status(409).json({ error: 'Code already taken. Try another.' });
   }
   // Premium-only: slugs ≤ 4 chars
-  if (code && slug.length <= 4 && !isPremium(userId)) {
-    return res.status(402).json({ error: 'Short codes (≤4 characters) are for premium members only. Upgrade at nerdstudio.online' });
+  if (code && slug.length <= 5 && !isPremium(userId)) {
+    return res.status(402).json({ error: 'Short codes (≤5 characters) are for premium members only. Upgrade at nerdstudio.online' });
   }
-  // Anonymous links expire in 30 days
-  const expiresAt = userId ? null : new Date(Date.now() + 30*24*3600*1000).toISOString();
+  // Anonymous links expire in 14 days
+  const expiresAt = userId ? null : new Date(Date.now() + 14*24*3600*1000).toISOString();
   try {
     db.prepare('INSERT INTO links (user_id, code, url, title, expires_at) VALUES (?, ?, ?, ?, ?)').run(userId, slug, finalURL, title || '', expiresAt);
     const link = { code: slug, url: finalURL, shortURL: `https://skip.my.id/${slug}` };
@@ -328,8 +329,8 @@ app.put('/api/links/:code', auth, (req, res) => {
     if (exists) return res.status(409).json({ error: 'That short name is already taken' });
     const microExists = db.prepare('SELECT 1 FROM microsites WHERE slug = ?').get(clean);
     if (microExists) return res.status(409).json({ error: 'That short name is already taken' });
-    if (clean.length <= 4 && !isPremium(req.userId)) {
-      return res.status(402).json({ error: 'Short codes (≤4 characters) are for premium members only. Upgrade at nerdstudio.online' });
+    if (clean.length <= 5 && !isPremium(req.userId)) {
+      return res.status(402).json({ error: 'Short codes (≤5 characters) are for premium members only. Upgrade at nerdstudio.online' });
     }
     finalCode = clean;
   }
@@ -560,9 +561,12 @@ app.post('/api/microsites/upload', auth, upload.single('file'), (req, res) => {
 });
 
 app.post('/api/microsites', auth, async (req, res) => {
-  // Microsites are premium-only
+  // Free users limited to 4 microsites
   if (!(await isPremiumAsync(req.userId))) {
-    return res.status(402).json({ error: 'Microsites are a premium feature. Upgrade at nerdstudio.online/upgrade', upgradeUrl: 'https://nerdstudio.online/upgrade' });
+    const count = db.prepare('SELECT COUNT(*) as cnt FROM microsites WHERE user_id = ?').get(req.userId);
+    if (count.cnt >= FREE_MAX_MICROSITES) {
+      return res.status(402).json({ error: `Free plan limited to ${FREE_MAX_MICROSITES} microsites. Upgrade at nerdstudio.online/upgrade`, upgradeUrl: 'https://nerdstudio.online/upgrade' });
+    }
   }
   const { title, slug, description, components } = req.body || {};
   if (!title) return res.status(400).json({ error: 'Title required' });
@@ -572,8 +576,8 @@ app.post('/api/microsites', auth, async (req, res) => {
     return res.status(409).json({ error: 'Slug already taken by an existing short link' });
   }
   // Premium-only: slugs ≤ 4 chars
-  if (finalSlug.length <= 4 && !isPremium(req.userId)) {
-    return res.status(402).json({ error: 'Short codes (≤4 characters) are for premium members only. Upgrade at nerdstudio.online' });
+  if (finalSlug.length <= 5 && !isPremium(req.userId)) {
+    return res.status(402).json({ error: 'Short codes (≤5 characters) are for premium members only. Upgrade at nerdstudio.online' });
   }
   try {
     db.prepare('INSERT INTO microsites (user_id, slug, title, description, components) VALUES (?,?,?,?,?)').run(
@@ -602,8 +606,8 @@ app.put('/api/microsites/:slug', auth, (req, res) => {
       return res.status(409).json({ error: 'Slug already taken by an existing short link' });
     }
     // Premium-only: slugs ≤ 4 chars
-    if (finalSlug.length <= 4 && !isPremium(req.userId)) {
-      return res.status(402).json({ error: 'Short codes (≤4 characters) are for premium members only. Upgrade at nerdstudio.online' });
+    if (finalSlug.length <= 5 && !isPremium(req.userId)) {
+      return res.status(402).json({ error: 'Short codes (≤5 characters) are for premium members only. Upgrade at nerdstudio.online' });
     }
   }
   try {
