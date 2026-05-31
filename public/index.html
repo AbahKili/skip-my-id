@@ -88,7 +88,10 @@
 
 <nav class="nav">
   <a href="/" class="logo">Skip<span>My</span>ID</a>
-  <a href="/dashboard" class="nav-cta">Sign In</a>
+  <div class="nav-links">
+    <a href="/dashboard" id="dash-link" style="display:none;color:var(--text-secondary);font-size:0.83rem;text-decoration:none;margin-right:1rem" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--text-secondary)'">Dashboard</a>
+    <a href="#" class="nav-cta" id="nav-cta" onclick="loginWithIdP();return false">Sign In</a>
+  </div>
 </nav>
 
 <main>
@@ -111,7 +114,7 @@
         <span class="copied" id="copied-msg"></span>
       </div>
       <div class="expiry-note" id="expiry-note" style="display:none;margin-top:0.75rem;padding:0.6rem 0.8rem;background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.2);border-radius:8px;font-size:0.75rem">
-        <span style="color:#eab308">⏳</span> This link expires in <strong>30 days</strong>. <a href="/dashboard" style="color:var(--accent);font-weight:600">Sign up</a> to keep it forever &amp; manage it from your dashboard.
+        <span style="color:#eab308">⏳</span> Link created anonymously — expires in <strong id="expiry-days">14 days</strong>. <a href="/dashboard" style="color:var(--accent);font-weight:600">Sign up</a> to keep it forever &amp; manage it from your dashboard.
       </div>
       <div style="margin-top:0.5rem;text-align:center">
         <button id="custom-toggle" class="btn" style="background:transparent;border:1px solid var(--border);color:var(--muted);font-size:0.75rem;padding:0.35rem 0.8rem" onclick="toggleCustom()">+ Custom name</button>
@@ -176,7 +179,7 @@ async function quickShorten() {
   const btn = document.querySelector('.btn');
   btn.disabled = true; btn.textContent = '...';
   try {
-    const res = await fetch('/api/links', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({url, code: code || undefined}) });
+    const res = await fetch('/api/links', { method:'POST', headers:Object.assign({'Content-Type':'application/json'}, (localStorage.getItem('shortener-token') ? {'Authorization': 'Bearer ' + localStorage.getItem('shortener-token')} : {})), body: JSON.stringify({url, code: code || undefined}) });
     const d = await res.json();
     if (d.ok) {
       document.getElementById('quick-output').value = d.link.shortURL;
@@ -184,6 +187,8 @@ async function quickShorten() {
       // Show expiry note for anonymous links
       if (d.link.expiresAt) {
         document.getElementById('expiry-note').style.display = '';
+        const daysLeft = Math.round((new Date(d.link.expiresAt) - Date.now()) / 86400000);
+        document.getElementById('expiry-days').textContent = daysLeft + ' days';
         // Store for claiming after signup
         const claimed = JSON.parse(localStorage.getItem('skm-anon-links') || '[]');
         if (!claimed.includes(d.link.code)) { claimed.push(d.link.code); }
@@ -195,6 +200,84 @@ async function quickShorten() {
   } catch(e) { errEl.textContent = 'Network error'; errEl.classList.add('show'); }
   btn.disabled = false; btn.textContent = 'Shorten';
 }
+</script>
+
+
+<script>
+// Check local auth
+(async () => {
+  var t = localStorage.getItem('shortener-token');
+  if (t) {
+    try {
+      var r = await fetch('/api/me', { headers: { 'Authorization': 'Bearer ' + t } });
+      if (r.ok) {
+        var u = await r.json();
+        var c = document.getElementById('nav-cta');
+        if (c && u.name) {
+          c.textContent = u.name.split(' ')[0];
+          c.href = '/dashboard';
+          c.title = u.email;
+        }
+      }
+    } catch (e) {}
+  }
+})();
+</script>
+
+<script>
+var REDIRECT_URI = window.location.origin;
+var IDP_AUTH_URL = 'https://id.nerdstudio.online/api/authorize?client_id=skipmyid&redirect_uri=' + encodeURIComponent(REDIRECT_URI);
+
+function loginWithIdP() {
+  window.location.href = IDP_AUTH_URL;
+}
+
+function updateNav(user) {
+  var c = document.getElementById('nav-cta');
+  var d = document.getElementById('dash-link');
+  if (c && user.name) {
+    c.textContent = user.name.split(' ')[0];
+    c.href = '/dashboard';
+    c.onclick = null;
+    c.title = user.email;
+    if (d) d.style.display = '';
+  }
+}
+
+// Check existing token
+(function() {
+  var t = localStorage.getItem('shortener-token');
+  if (t) {
+    fetch('/api/me', { headers: { 'Authorization': 'Bearer ' + t } })
+      .then(function(r) { return r.ok ? r.json() : null; })
+      .then(function(u) { if (u) updateNav(u); })
+      .catch(function() {});
+  }
+
+  // Handle OAuth callback
+  var params = new URLSearchParams(window.location.search);
+  var code = params.get('code');
+  if (code) {
+    window.history.replaceState({}, '', '/');
+    fetch('/api/auth/idp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: code, redirect_uri: REDIRECT_URI })
+    }).then(function(r) { return r.json(); }).then(function(d) {
+      if (d.token) {
+        localStorage.setItem('shortener-token', d.token);
+        updateNav(d.user);
+      }
+    }).catch(function() {});
+  }
+})();
+
+  // Auto-login: if coming from nerdstudio.online and no token, do silent authorize
+  if (!localStorage.getItem('shortener-token') && document.referrer && document.referrer.includes('nerdstudio.online')) {
+    sessionStorage.setItem('_skip_auto_auth', '1');
+    window.location.href = IDP_AUTH_URL;
+  }
+
 </script>
 </body>
 </html>

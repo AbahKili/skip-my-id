@@ -129,12 +129,15 @@ app.use(express.json({
 }));
 app.use(express.static(path.join(__dirname, 'public')));
 
+const jwt = require('jsonwebtoken');
+const JWT_SECRET = process.env.JWT_SECRET || IDP_INTERNAL_KEY;
+
 function optionalAuth(req, res, next) {
   const token = (req.headers.authorization || '').replace('Bearer ', '');
   if (!token) return next();
   try {
-    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
-    req.userId = payload.id;
+    const payload = jwt.verify(token, JWT_SECRET);
+    req.userId = payload.id || payload.sub;
   } catch {}
   next();
 }
@@ -143,18 +146,15 @@ function auth(req, res, next) {
   const token = (req.headers.authorization || '').replace('Bearer ', '');
   if (!token) return res.status(401).json({ error: 'Login required' });
   try {
-    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
-    req.userId = payload.id;
+    const payload = jwt.verify(token, JWT_SECRET);
+    req.userId = payload.id || payload.sub;
     next();
   } catch { res.status(401).json({ error: 'Invalid token' }); }
 }
 
 function hash(pw) { return crypto.createHash('sha256').update(pw).digest('hex'); }
 function token(id) {
-  const h = { alg: 'HS256', typ: 'JWT' };
-  const p = { id, exp: Date.now() + 30 * 24 * 3600 * 1000 };
-  return Buffer.from(JSON.stringify(h)).toString('base64url') + '.' +
-         Buffer.from(JSON.stringify(p)).toString('base64url') + '.sig';
+  return jwt.sign({ id }, JWT_SECRET, { expiresIn: '30d' });
 }
 async function checkIdpMembership(email) {
   if (!email) return false;
@@ -236,6 +236,48 @@ app.post('/api/auth/google', async (req, res) => {
       );
     }
     res.json({ token: token(user.id), user: { id: user.id, email: user.email, name: user.name || profile.name, avatar: profile.picture } });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+// ── IdP Login (Nerd Studio SSO) ──
+app.post('/api/auth/idp', async (req, res) => {
+  const { code, redirect_uri } = req.body || {};
+  if (!code) return res.status(400).json({ error: 'code required' });
+
+  try {
+    // Exchange code with IdP
+    const idpResp = await fetch(IDP_URL + '/api/token/exchange', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        code,
+        client_id: 'skipmyid',
+        client_secret: 'e5c2dfb8bac6db874c3055b0a570edf44543c4c230746846',
+        redirect_uri: redirect_uri || 'https://skip.my.id/dashboard'
+      })
+    });
+    if (!idpResp.ok) {
+      const err = await idpResp.json().catch(() => ({}));
+      return res.status(401).json({ error: err.error || 'IdP auth failed' });
+    }
+    const idpData = await idpResp.json();
+    const profile = idpData.user || idpData;
+    if (!profile || !profile.email) return res.status(401).json({ error: 'No user data from IdP' });
+
+    // Find or create user by email
+    let user = db.prepare('SELECT * FROM users WHERE email = ?').get(profile.email);
+    if (!user) {
+      db.prepare('INSERT INTO users (email, name, avatar, google_id) VALUES (?, ?, ?, ?)').run(
+        profile.email, profile.name || '', profile.avatar || '', profile.google_id || ''
+      );
+      user = db.prepare('SELECT * FROM users WHERE email = ?').get(profile.email);
+    } else if (profile.name && !user.name) {
+      db.prepare('UPDATE users SET name = ? WHERE id = ?').run(profile.name, user.id);
+    }
+    res.json({ token: token(user.id), user: { id: user.id, email: user.email, name: profile.name || user.name, avatar: profile.avatar || user.avatar } });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
