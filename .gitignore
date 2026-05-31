@@ -8,3 +8,4 @@ data-staging.db-wal
 start.sh
 start-staging.sh
 public/uploads/
+.env
